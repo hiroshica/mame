@@ -305,6 +305,7 @@ GND  8A 8B GND
 #include "machine/upd4701.h"
 #include "video/315_5124.h"
 #include "speaker.h"
+#include "sound/ymopl.h"
 
 
 class systeme_state : public driver_device
@@ -316,6 +317,7 @@ public:
 		m_vdp1(*this, "vdp1"),
 		m_vdp2(*this, "vdp2"),
 		m_ppi(*this, "ppi"),
+		m_ym2413(*this, "ymsnd"),
 		m_decrypted_opcodes(*this, "decrypted_opcodes"),
 		m_maincpu_region(*this, "maincpu"),
 		m_bank1(*this, "bank1"),
@@ -359,6 +361,7 @@ private:
 	required_device<sega315_5124_device> m_vdp1;
 	required_device<sega315_5124_device> m_vdp2;
 	required_device<i8255_device>        m_ppi;
+	optional_device<ym2413_device>		 m_ym2413;
 
 	optional_shared_ptr<uint8_t> m_decrypted_opcodes;
 	required_memory_region m_maincpu_region;
@@ -423,6 +426,8 @@ void systeme_state::io_map(address_map &map)
 	map(0xf3, 0xf3).portr("f3");
 	map(0xf7, 0xf7).w(FUNC(systeme_state::bank_write));
 	map(0xf8, 0xfb).rw(m_ppi, FUNC(i8255_device::read), FUNC(i8255_device::write));
+
+	map(0xf0, 0xf1).w(m_ym2413,FUNC(ym2413_device::write));
 }
 
 
@@ -918,6 +923,8 @@ void systeme_state::systeme(machine_config &config)
 	m_vdp2->n_int().set_inputline(m_maincpu, 0);
 	m_vdp2->set_addrmap(0, &systeme_state::vdp2_map);
 	m_vdp2->add_route(ALL_OUTPUTS, "mono", 0.50);
+
+	YM2413(config, m_ym2413, XTAL(10'738'635)/2).add_route(ALL_OUTPUTS, "mono", 1.8);
 }
 
 void systeme_state::hangonjr(machine_config &config)
@@ -992,6 +999,10 @@ void systeme_state::init_opaopa()
 void systeme_state::init_fantzn2()
 {
 	downcast<mc8123_device &>(*m_maincpu).decode(m_maincpu_region->base(), m_decrypted_opcodes, 0x8000);
+
+	if (m_ym2413){
+		m_ym2413->reset();
+	}
 }
 
 
