@@ -2,7 +2,7 @@
 // copyright-holders:Nathan Woods, Raphael Nabet, R. Belmont
 /****************************************************************************
 
-    machine/mac.c
+    mac_m.cpp
 
     Mac II series hardware
 
@@ -20,10 +20,8 @@
          - Mac IIcx             030             SWIM    MacII ADB  ext      NuBus card
          - Mac IIci             030             SWIM    MacII ADB  ext      Internal "RBV" type
          - Mac IIsi             030             SWIM    Egret ADB  n/a      Internal "RBV" type
-         - Mac IIvx/IIvi        030             SWIM    Egret ADB  n/a      Internal "VASP" type
          - Mac LC               020             SWIM    Egret ADB  n/a      Internal "V8" type
          - Mac LC II            030             SWIM    Egret ADB  n/a      Internal "V8" type
-         - Mac LC III           030             SWIM    Egret ADB  n/a      Internal "Sonora" type
          - Mac Classic II       030             SWIM    Egret ADB  n/a      Internal "Eagle" type (V8 clone)
          - Mac Color Classic    030             SWIM    Cuda ADB   n/a      Internal "Spice" type (V8 clone)
 
@@ -47,30 +45,6 @@
 
      TODO:
         - Call the RTC timer
-
-     Egret version spotting:
-     341S0850 - 0x???? (1.01, earlier) - LC, LC II
-     341S0851 - 0x0101 (1.01, later) - Classic II, IIsi, IIvx/IIvi, LC III
-     344S0100 - 0x0100 (1.00) - Some (early production?) IIsi
-
-     Cuda version spotting:
-     341S0262 - 0x0003f200 (3.02) - some PMac 6500, Bondi blue iMac
-     341S0285 - No version (x.xx) - PMac 4400 + Mac clones ("Cuda Lite" with 768 bytes more ROM + PS/2 keyboard/mouse support)
-     341S0060 - 0x00020028 (2.40) - Performa/Quadra 6xx, PMac 6200, x400, some x500, Pippin, "Gossamer" G3, others?
-                                    (verified found in PMac 5500-225, G3-333)
-     341S0788 - 0x00020025 (2.37) - LC 475/575/Quadra 605, Quadra 660AV/840AV, PMac 7200
-     341S0417 - 0x00020023 (2.35) - Color Classic
-
-     Caboose version spotting:
-     341S0853 - 0x0100 (1.00) - Quadra 950
-
-     PG&E (68HC05 PMU) version spotting:
-     (find the text "BORG" in the system ROM, the next 32768 bytes are the PG&E image.
-      offset +4 in the image is the version byte).
-     01 - PowerBook Duo 210/230/250
-     02 - PowerBook 540c, PBDuo 270C, PBDuo 280/280C
-     03 - PowerBook 150
-     08 - PB190cs, PowerBook 540c PPC update, all PowerPC PowerBooks through WallStreet G3s
 
 ****************************************************************************/
 
@@ -344,7 +318,7 @@ void mac_state::set_memory_overlay(int overlay)
 		}
 
 		/* install the memory */
-		if (((m_model >= MODEL_MAC_LC) && (m_model <= MODEL_MAC_COLOR_CLASSIC) && ((m_model != MODEL_MAC_LC_III) && (m_model != MODEL_MAC_LC_III_PLUS))) || (m_model == MODEL_MAC_CLASSIC_II))
+		if (((m_model >= MODEL_MAC_LC) && (m_model <= MODEL_MAC_COLOR_CLASSIC)) || (m_model == MODEL_MAC_CLASSIC_II))
 		{
 			m_overlay = overlay;
 			v8_resize();
@@ -369,23 +343,9 @@ void mac_state::set_memory_overlay(int overlay)
 			space.unmap_write(0x000000, 0x9fffff);
 			mac_install_memory(0x000000, memory_size-1, memory_size, memory_data, is_rom);
 		}
-		else if ((m_model >= MODEL_MAC_II) && (m_model <= MODEL_MAC_SE30) && (m_model != MODEL_MAC_IIVX) && (m_model != MODEL_MAC_IIVI))
+		else if ((m_model >= MODEL_MAC_II) && (m_model <= MODEL_MAC_SE30))
 		{
 			mac_install_memory(0x00000000, 0x3fffffff, memory_size, memory_data, is_rom);
-		}
-		else if ((m_model == MODEL_MAC_IIVX) || (m_model == MODEL_MAC_IIVI) || (m_model == MODEL_MAC_LC_III) || (m_model == MODEL_MAC_LC_III_PLUS) || (m_model >= MODEL_MAC_LC_475 && m_model <= MODEL_MAC_LC_580))   // up to 36 MB
-		{
-			mac_install_memory(0x00000000, memory_size-1, memory_size, memory_data, is_rom);
-
-			if (is_rom)
-			{
-				m_maincpu->space(AS_PROGRAM).install_read_handler(0x40000000, 0x4fffffff, read32sm_delegate(*this, FUNC(mac_state::rom_switch_r)), 0xffffffff);
-			}
-			else
-			{
-				size_t rom_mirror = 0xfffffff ^ (m_rom_size - 1);
-				m_maincpu->space(AS_PROGRAM).install_rom(0x40000000, 0x4fffffff & ~rom_mirror, rom_mirror, m_rom_ptr);
-			}
 		}
 		else
 		{
@@ -696,8 +656,6 @@ uint8_t mac_state::mac_via_in_a()
 
 		case MODEL_MAC_LC:
 		case MODEL_MAC_LC_II:
-		case MODEL_MAC_IIVX:
-		case MODEL_MAC_IIVI:
 			return 0x81 | PA6 | PA4 | PA2;
 
 		case MODEL_MAC_IICI:
@@ -1038,9 +996,7 @@ void mac_state::machine_start()
 	save_item(NAME(m_nubus_irq_state));
 	save_item(NAME(m_se30_vbl_enable));
 	save_item(NAME(m_adb_irq_pending));
-	save_item(NAME(irq_count));
 	save_item(NAME(ca1_data));
-	save_item(NAME(ca2_data));
 	save_item(NAME(m_rbv_regs));
 	save_item(NAME(m_rbv_ier));
 	save_item(NAME(m_rbv_ifr));
@@ -1090,15 +1046,7 @@ void mac_state::machine_reset()
 
 	if (m_overlay_timeout != (emu_timer *)nullptr)
 	{
-		if ((m_model == MODEL_MAC_LC_III) || (m_model == MODEL_MAC_LC_III_PLUS) || (m_model >= MODEL_MAC_LC_475 && m_model <= MODEL_MAC_LC_580))   // up to 36 MB
-		{
-			m_overlay_timeout->adjust(attotime::never);
-		}
-		else if (((m_model >= MODEL_MAC_LC) && (m_model <= MODEL_MAC_COLOR_CLASSIC) && ((m_model != MODEL_MAC_LC_III) && (m_model != MODEL_MAC_LC_III_PLUS))) || (m_model == MODEL_MAC_CLASSIC_II))
-		{
-			m_overlay_timeout->adjust(attotime::never);
-		}
-		else if ((m_model >= MODEL_MAC_IIVX) && (m_model <= MODEL_MAC_IIVI))
+		if (((m_model >= MODEL_MAC_LC) && (m_model <= MODEL_MAC_COLOR_CLASSIC)) || (m_model == MODEL_MAC_CLASSIC_II))
 		{
 			m_overlay_timeout->adjust(attotime::never);
 		}
@@ -1164,17 +1112,8 @@ uint32_t mac_state::mac_read_id()
 
 	switch (m_model)
 	{
-		case MODEL_MAC_LC_III:
-			return 0xa55a0001;  // 25 MHz LC III
-
-		case MODEL_MAC_LC_III_PLUS:
-			return 0xa55a0003;  // 33 MHz LC III+
-
 		case MODEL_MAC_LC_475:
 			return 0xa55a2221;
-
-		case MODEL_MAC_LC_520:
-			return 0xa55a0100;
 
 		case MODEL_MAC_LC_550:
 			return 0xa55a0101;
@@ -1203,9 +1142,6 @@ uint32_t mac_state::mac_read_id()
 		case MODEL_MAC_QUADRA_840AV:
 			return 0xa55a2830;
 
-		case MODEL_MAC_IIVX:
-			return 0xa55a2015;
-
 		default:
 			return 0;
 	}
@@ -1228,8 +1164,8 @@ void mac_state::mac_driver_init(model_t model)
 
 	memset(m_ram->pointer(), 0, m_ram->size());
 
-	if ((model == MODEL_MAC_CLASSIC_II) || (model == MODEL_MAC_LC) || (model == MODEL_MAC_COLOR_CLASSIC) || (model >= MODEL_MAC_LC_475 && model <= MODEL_MAC_LC_580) ||
-		(model == MODEL_MAC_LC_II) || (model == MODEL_MAC_LC_III) || (model == MODEL_MAC_LC_III_PLUS) || ((m_model >= MODEL_MAC_II) && (m_model <= MODEL_MAC_SE30)))
+	if ((model == MODEL_MAC_CLASSIC_II) || (model == MODEL_MAC_LC) || (model == MODEL_MAC_COLOR_CLASSIC) ||
+		(model == MODEL_MAC_LC_II) || ((m_model >= MODEL_MAC_II) && (m_model <= MODEL_MAC_SE30)))
 	{
 		m_overlay_timeout = timer_alloc(FUNC(mac_state::overlay_timeout_func), this);
 	}
@@ -1250,21 +1186,16 @@ void mac_state::init_##label()     \
 
 MAC_DRIVER_INIT(maclc, MODEL_MAC_LC)
 MAC_DRIVER_INIT(maclc2, MODEL_MAC_LC_II)
-MAC_DRIVER_INIT(maclc3, MODEL_MAC_LC_III)
-MAC_DRIVER_INIT(maclc3plus, MODEL_MAC_LC_III_PLUS)
 MAC_DRIVER_INIT(maciici, MODEL_MAC_IICI)
 MAC_DRIVER_INIT(maciisi, MODEL_MAC_IISI)
 MAC_DRIVER_INIT(macii, MODEL_MAC_II)
 MAC_DRIVER_INIT(macse30, MODEL_MAC_SE30)
 MAC_DRIVER_INIT(macclassic2, MODEL_MAC_CLASSIC_II)
 MAC_DRIVER_INIT(maclrcclassic, MODEL_MAC_COLOR_CLASSIC)
-MAC_DRIVER_INIT(maciivx, MODEL_MAC_IIVX)
-MAC_DRIVER_INIT(maciivi, MODEL_MAC_IIVI)
 MAC_DRIVER_INIT(maciifx, MODEL_MAC_IIFX)
 MAC_DRIVER_INIT(maciicx, MODEL_MAC_IICX)
 MAC_DRIVER_INIT(maciifdhd, MODEL_MAC_II_FDHD)
 MAC_DRIVER_INIT(maciix, MODEL_MAC_IIX)
-MAC_DRIVER_INIT(maclc520, MODEL_MAC_LC_520)
 
 void mac_state::nubus_slot_interrupt(uint8_t slot, uint32_t state)
 {
@@ -1315,15 +1246,6 @@ void mac_state::vblank_irq()
 	if (m_macadb)
 	{
 		m_macadb->adb_vblank();
-	}
-
-	if (++irq_count == 60)
-	{
-		irq_count = 0;
-
-		ca2_data ^= 1;
-		/* signal 1 Hz irq on CA2 input on the VIA */
-		m_via1->write_ca2(ca2_data);
 	}
 
 	// handle SE/30 vblank IRQ

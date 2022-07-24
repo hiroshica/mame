@@ -15,14 +15,16 @@ Hardware notes:
 - HD61603, 2 4*7seg LCD screens
 - TTL, piezo, 8*8+7 LEDs, button sensors
 
-TODO:
-- WIP (internal artwork, mostly)
+The software searches for an opening book ROM in 0x4000-0x7fff, it looks like
+it's compatible with Conchess L16 / Mephisto HG240. Though the hardware does
+not have an edge connector or empty ROM socket for it.
 
 ******************************************************************************/
 
 #include "emu.h"
 
 #include "cpu/m6502/r65c02.h"
+#include "machine/nvram.h"
 #include "machine/sensorboard.h"
 #include "sound/dac.h"
 #include "video/hd61603.h"
@@ -31,7 +33,7 @@ TODO:
 #include "speaker.h"
 
 // internal artwork
-//#include "yeno_532xl.lh" // clickable
+#include "yeno_532xl.lh" // clickable
 
 
 namespace {
@@ -140,6 +142,7 @@ u8 y532xl_state::input_r()
 
 void y532xl_state::cb_w(u8 data)
 {
+	// d0-d3: lcd data (see control_w)
 	// d0-d7: chessboard input mux
 	m_cb_mux = data;
 	update_display();
@@ -170,8 +173,8 @@ void y532xl_state::control_w(offs_t offset, u8 data)
 	// Q7 rising edge: write to lcd
 	if (~prev & m_control & 0x80)
 		m_lcd->data_w(m_cb_mux & 0xf);
-
 }
+
 
 
 /******************************************************************************
@@ -180,7 +183,7 @@ void y532xl_state::control_w(offs_t offset, u8 data)
 
 void y532xl_state::main_map(address_map &map)
 {
-	map(0x0000, 0x1fff).ram();
+	map(0x0000, 0x1fff).ram().share("nvram");
 	map(0x2000, 0x2000).w(FUNC(y532xl_state::cb_w));
 	map(0x2080, 0x2080).w(FUNC(y532xl_state::led_w));
 	map(0x2100, 0x2100).r(FUNC(y532xl_state::input_r));
@@ -208,7 +211,7 @@ static INPUT_PORTS_START( y532xl )
 	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_CODE(KEYCODE_U) PORT_NAME("Multi Move")
 	PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_CODE(KEYCODE_X) PORT_NAME("Teach")
 	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_CODE(KEYCODE_T) PORT_CODE(KEYCODE_9) PORT_CODE(KEYCODE_9_PAD) PORT_NAME("9 / Take Back")
-	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_CODE(KEYCODE_W) PORT_CODE(KEYCODE_0) PORT_CODE(KEYCODE_0_PAD) PORT_NAME("0 / Forward")
+	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_CODE(KEYCODE_R) PORT_CODE(KEYCODE_0) PORT_CODE(KEYCODE_0_PAD) PORT_NAME("0 / Forward")
 
 	PORT_START("IN.2")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_CODE(KEYCODE_A) PORT_CODE(KEYCODE_1) PORT_CODE(KEYCODE_1_PAD) PORT_NAME("A / 1 / Pawn")
@@ -229,25 +232,28 @@ INPUT_PORTS_END
 
 void y532xl_state::y532xl(machine_config &config)
 {
-	/* basic machine hardware */
+	// basic machine hardware
 	R65C02(config, m_maincpu, 4_MHz_XTAL);
 	m_maincpu->set_addrmap(AS_PROGRAM, &y532xl_state::main_map);
 
 	const attotime nmi_period = attotime::from_hz(4_MHz_XTAL / 0x2000);
 	m_maincpu->set_periodic_int(FUNC(y532xl_state::nmi_line_pulse), nmi_period);
 
+	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
+
 	SENSORBOARD(config, m_board).set_type(sensorboard_device::BUTTONS);
 	m_board->init_cb().set(m_board, FUNC(sensorboard_device::preset_chess));
 	m_board->set_delay(attotime::from_msec(150));
+	m_board->set_nvram_enable(true);
 
-	/* video hardware */
+	// video hardware
 	HD61603(config, m_lcd, 0);
 	m_lcd->write_segs().set(FUNC(y532xl_state::lcd_seg_w));
 
 	PWM_DISPLAY(config, m_display).set_size(9, 8);
-	//config.set_default_layout(layout_yeno_532xl);
+	config.set_default_layout(layout_yeno_532xl);
 
-	/* sound hardware */
+	// sound hardware
 	SPEAKER(config, "speaker").front_center();
 	DAC_2BIT_ONES_COMPLEMENT(config, m_dac).add_route(ALL_OUTPUTS, "speaker", 0.125);
 }
@@ -272,4 +278,4 @@ ROM_END
 ******************************************************************************/
 
 /*    YEAR  NAME     PARENT    COMPAT  MACHINE  INPUT   CLASS         INIT        COMPANY, FULLNAME, FLAGS */
-CONS( 1989, y532xl,  0,        0,      y532xl,  y532xl, y532xl_state, empty_init, "Yeno", "532 XL (Yeno)", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK | MACHINE_NOT_WORKING )
+CONS( 1989, y532xl,  0,        0,      y532xl,  y532xl, y532xl_state, empty_init, "Yeno", "532 XL (Yeno)", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK )
