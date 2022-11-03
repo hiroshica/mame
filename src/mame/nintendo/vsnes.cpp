@@ -144,7 +144,7 @@ Changes:
 #include "emu.h"
 
 #include "bus/nes_ctrl/zapper_sensor.h"
-#include "cpu/m6502/n2a03.h"
+#include "cpu/m6502/rp2a03.h"
 #include "cpu/z80/z80.h"
 #include "machine/nvram.h"
 #include "machine/watchdog.h"
@@ -950,8 +950,8 @@ void vs_dual_state::vsdual_vrom_banking(u8 data)
 	m_chr_banks[Side]->set_entry(BIT(data, 2));
 
 	// bit 1 ( data & 2 ) triggers irq on the other cpu
-	auto cpu = (Side == SUB) ? m_maincpu : m_subcpu;
-	cpu->set_input_line(0, (data & 2) ? CLEAR_LINE : ASSERT_LINE);
+	auto &cpu = (Side == SUB) ? *m_maincpu : *m_subcpu;
+	cpu.set_input_line(0, (data & 2) ? CLEAR_LINE : ASSERT_LINE);
 
 	// move along
 	vsnes_in0_w<Side>(data);
@@ -2405,14 +2405,14 @@ INPUT_PORTS_END
 void vs_uni_state::vsnes(machine_config &config)
 {
 	// basic machine hardware
-	n2a03_device &maincpu(N2A03(config, m_maincpu, NTSC_APU_CLOCK));
+	rp2a03_device &maincpu(RP2A03(config, m_maincpu, NTSC_APU_CLOCK));
 	maincpu.set_addrmap(AS_PROGRAM, &vs_uni_state::vsnes_cpu1_map);
 
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
 	// video hardware
 	screen_device &screen1(SCREEN(config, "screen1", SCREEN_TYPE_RASTER));
-	screen1.set_raw(N2A03_NTSC_XTAL / 4, 341, 0, VISIBLE_SCREEN_WIDTH, ppu2c0x_device::NTSC_SCANLINES_PER_FRAME, 0, VISIBLE_SCREEN_HEIGHT);
+	screen1.set_raw(RP2A03_NTSC_XTAL / 4, 341, 0, VISIBLE_SCREEN_WIDTH, ppu2c0x_device::NTSC_SCANLINES_PER_FRAME, 0, VISIBLE_SCREEN_HEIGHT);
 	screen1.set_screen_update("ppu1", FUNC(ppu2c0x_device::screen_update));
 
 	PPU_2C04(config, m_ppu1);
@@ -2475,10 +2475,10 @@ void vs_uni_state::topgun(machine_config &config)
 void vs_dual_state::vsdual(machine_config &config)
 {
 	// basic machine hardware
-	n2a03_device &maincpu(N2A03(config, m_maincpu, NTSC_APU_CLOCK));
+	rp2a03_device &maincpu(RP2A03(config, m_maincpu, NTSC_APU_CLOCK));
 	maincpu.set_addrmap(AS_PROGRAM, &vs_dual_state::vsnes_cpu1_map);
 
-	n2a03_device &subcpu(N2A03(config, m_subcpu, NTSC_APU_CLOCK));
+	rp2a03_device &subcpu(RP2A03(config, m_subcpu, NTSC_APU_CLOCK));
 	subcpu.set_addrmap(AS_PROGRAM, &vs_dual_state::vsnes_cpu2_map);
 
 	// need high level of interleave to keep screens in sync in Balloon Fight.
@@ -2489,11 +2489,11 @@ void vs_dual_state::vsdual(machine_config &config)
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
 	screen_device &screen1(SCREEN(config, "screen1", SCREEN_TYPE_RASTER));
-	screen1.set_raw(N2A03_NTSC_XTAL / 4, 341, 0, VISIBLE_SCREEN_WIDTH, ppu2c0x_device::NTSC_SCANLINES_PER_FRAME, 0, VISIBLE_SCREEN_HEIGHT);
+	screen1.set_raw(RP2A03_NTSC_XTAL / 4, 341, 0, VISIBLE_SCREEN_WIDTH, ppu2c0x_device::NTSC_SCANLINES_PER_FRAME, 0, VISIBLE_SCREEN_HEIGHT);
 	screen1.set_screen_update("ppu1", FUNC(ppu2c0x_device::screen_update));
 
 	screen_device &screen2(SCREEN(config, "screen2", SCREEN_TYPE_RASTER));
-	screen2.set_raw(N2A03_NTSC_XTAL / 4, 341, 0, VISIBLE_SCREEN_WIDTH, ppu2c0x_device::NTSC_SCANLINES_PER_FRAME, 0, VISIBLE_SCREEN_HEIGHT);
+	screen2.set_raw(RP2A03_NTSC_XTAL / 4, 341, 0, VISIBLE_SCREEN_WIDTH, ppu2c0x_device::NTSC_SCANLINES_PER_FRAME, 0, VISIBLE_SCREEN_HEIGHT);
 	screen2.set_screen_update("ppu2", FUNC(ppu2c0x_device::screen_update));
 
 	PPU_2C04(config, m_ppu1);

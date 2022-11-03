@@ -292,7 +292,7 @@ std::string cart_licensee_description(u8 const *header)
 {
 	// TODO: fill in and correct lists, distinguish duplicates
 	static constexpr std::pair<u8, char const *> BASE[] = {
-								                    { 0x01, "Nintendo" },
+													{ 0x01, "Nintendo" },
 			{ 0x08, "Capcom" },                     { 0x09, "Hot-B" },                  { 0x0a, "Jaleco" },                     { 0x0b, "Coconuts Japan" },
 			{ 0x0c, "Elite Systems" },
 																																{ 0x13, "Electronic Arts" },
@@ -407,7 +407,7 @@ std::string cart_licensee_description(u8 const *header)
 			{ 0x3932, "Video System" },
 			{ 0x3933, "Ocean/Acclaim" },
 			{ 0x3935, "Varie Corporation" },
-			{ 0x3936, "Yonezawa/s’pal" },
+			{ 0x3936, "Yonezawa/s'pal" },
 			{ 0x3937, "Kaneko" },
 			{ 0x3939, "Pack-In-Video Co." },
 			{ 0x4134, "Konami (Yu-Gi-Oh!)" } };
@@ -481,6 +481,32 @@ bool is_wisdom_tree(std::string_view tag, util::random_read &file, u64 length, u
 			tag,
 			length);
 	return true;
+}
+
+
+bool is_mbc30(std::string_view tag, util::random_read &file, u64 length, u64 offset, u8 const *header)
+{
+	// MBC30 supposedly has an additional ROM bank output
+	if ((u32(0x4000) << 7) < length)
+	{
+		osd_printf_verbose(
+				"[%s] Assuming 0x%06X-byte cartridge declaring MBC3 controller uses MBC30\n",
+				tag,
+				length);
+		return true;
+	}
+
+	// MBC30 has three RAM bank outputs, supporting up to 64 KiB static RAM
+	if (cartheader::RAM_SIZE_64K == header[cartheader::OFFSET_RAM_SIZE - 0x100])
+	{
+		osd_printf_verbose(
+				"[%s] Assuming cartridge declaring MBC3 controller with 64 KiB RAM uses MBC30\n",
+				tag);
+		return true;
+	}
+
+	// MBC3 should be fine
+	return false;
 }
 
 
@@ -667,10 +693,16 @@ std::optional<char const *> probe_gbx_footer(std::string_view tag, util::random_
 		result = slotoptions::GB_MBC2;
 		break;
 	case gbxfile::TYPE_MBC3:
-		result = slotoptions::GB_MBC3;
+		if (((u32(0x4000) << 7) < leader.rom_bytes) || ((u32(0x2000) << 2) < leader.ram_bytes))
+			result = slotoptions::GB_MBC30;
+		else
+			result = slotoptions::GB_MBC3;
 		break;
 	case gbxfile::TYPE_MBC5:
 		result = slotoptions::GB_MBC5;
+		break;
+	case gbxfile::TYPE_MBC6:
+		result = slotoptions::GB_MBC6;
 		break;
 	case gbxfile::TYPE_MBC7:
 		{
@@ -693,23 +725,29 @@ std::optional<char const *> probe_gbx_footer(std::string_view tag, util::random_
 	case gbxfile::TYPE_MMM01:
 		result = slotoptions::GB_MMM01;
 		break;
+	case gbxfile::TYPE_CAMERA:
+		result = slotoptions::GB_CAMERA;
+		break;
 	case gbxfile::TYPE_HUC1:
 		result = slotoptions::GB_HUC1;
 		break;
 	case gbxfile::TYPE_HUC3:
 		result = slotoptions::GB_HUC3;
 		break;
-	case gbxfile::TYPE_CAMERA:
-		result = slotoptions::GB_CAMERA;
+	case gbxfile::TYPE_SINTAX:
+		result = slotoptions::GB_SINTAX;
 		break;
 	case gbxfile::TYPE_LICHENG:
 		result = slotoptions::GB_LICHENG;
 		break;
-	case gbxfile::TYPE_SINTAX:
-		result = slotoptions::GB_SINTAX;
+	case gbxfile::TYPE_NEWGBCHK:
+		result = slotoptions::GB_NEWGBCHK;
 		break;
 	case gbxfile::TYPE_VF001:
 		result = slotoptions::GB_VF001;
+		break;
+	case gbxfile::TYPE_SLMULTI:
+		result = slotoptions::GB_SLMULTI;
 		break;
 	}
 	if (result)
@@ -760,7 +798,6 @@ bool detect_mmm01(std::string_view tag, util::random_read &file, u64 length, u64
 	if ((length & 0x3fff) || ((u32(0x4000) << 9) < length))
 		return false;
 
-
 	// now check for a valid cartridge header
 	u32 const lastpage(get_mmm01_initial_low_page(length));
 	u8 backheader[0x50];
@@ -799,7 +836,7 @@ bool detect_mmm01(std::string_view tag, util::random_read &file, u64 length, u64
 					std::find_if(
 						std::begin(KNOWN_COLLECTIONS),
 						std::end(KNOWN_COLLECTIONS),
-						[backheader] (auto const &name)
+						[&backheader] (auto const &name)
 						{
 							return std::equal(std::begin(name), std::end(name), &backheader[cartheader::OFFSET_TITLE - 0x100]);
 						}));
@@ -845,14 +882,20 @@ char const *guess_cart_type(std::string_view tag, util::random_read &file, u64 l
 		return slotoptions::GB_MMM01;
 	// 0x0e
 	case cartheader::TYPE_MBC3_RTC_BATT:
+		if (is_mbc30(tag, file, length, offset, header))
+			return slotoptions::GB_MBC30;
 		return slotoptions::GB_MBC3;
 	case cartheader::TYPE_MBC3_RTC_RAM_BATT:
 		if (is_m161(tag, file, length, offset, header))
 			return slotoptions::GB_M161;
+		else if (is_mbc30(tag, file, length, offset, header))
+			return slotoptions::GB_MBC30;
 		return slotoptions::GB_MBC3;
 	case cartheader::TYPE_MBC3:
 	case cartheader::TYPE_MBC3_RAM:
 	case cartheader::TYPE_MBC3_RAM_BATT:
+		if (is_mbc30(tag, file, length, offset, header))
+			return slotoptions::GB_MBC30;
 		return slotoptions::GB_MBC3;
 	// 0x14
 	case cartheader::TYPE_MBC5:
