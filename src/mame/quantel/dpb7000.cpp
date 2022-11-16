@@ -794,7 +794,7 @@ void dpb7000_state::machine_start()
 	save_item(NAME(m_diskseq_cyl_write_pending));
 	save_item(NAME(m_diskseq_use_hdd_pending));
 	save_item(NAME(m_diskseq_command_stride));
-	m_diskseq_complete_clk = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(dpb7000_state::req_b_w), this));;
+	m_diskseq_complete_clk = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(dpb7000_state::req_b_w), this));
 	m_diskseq_complete_clk->adjust(attotime::never);
 
 	// Floppy Disc Controller Card
@@ -3425,7 +3425,7 @@ uint8_t dpb7000_state::tablet_rdl_r()
 	//if (m_tablet_mux == 3)
 		//m_tablet_state = 0;
 
-	m_tablet_counter_latch = rand() & 0xfff;
+	m_tablet_counter_latch = machine().rand() & 0xfff;
 	LOGMASKED(LOG_TABLET, "%s: Random latch: %04x\n", machine().describe_context(), m_tablet_counter_latch);
 	uint8_t data = (uint8_t)m_tablet_counter_latch;
 	LOGMASKED(LOG_TABLET, "%s: Tablet RDL Read (Mux %d): %02x\n", machine().describe_context(), m_tablet_mux, data);
