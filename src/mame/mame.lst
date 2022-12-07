@@ -33985,7 +33985,8 @@ vandykejal                      // UPL-90064 (c) Jaleco
 vandykejal2                     // UPL-90064 (c) Jaleco
 
 @source:nmk/nmkmedal.cpp
-hpierrot                        // NMK
+drail                           // NTC / NMK
+hpierrot                        // NTC / NMK
 trocana                         // NTC / NMK
 
 @source:efo/nightmare.cpp
@@ -34827,6 +34828,7 @@ pcktgal                         // (c) 1987 Data East Corporation (Japan)
 pcktgal2                        // (c) 1989 Data East Corporation (World?)
 pcktgal2j                       // (c) 1989 Data East Corporation (World?)
 pcktgalb                        // bootleg
+pcktgalba                       // bootleg
 spool3                          // (c) 1989 Data East Corporation (World?)
 spool3i                         // (c) 1990 Data East Corporation + I-Vics license
 
