@@ -57,15 +57,6 @@ void md_cons_state::md_exp_port(machine_config &config)
 
 
 static INPUT_PORTS_START( md )
-	// Unemulated controllers:
-	// Sega Mouse
-	// Sega Menacer
-	// Konami Justifier
-	// Sega Team Player
-	// EA 4-Play
-/* there exists both a 2 buttons version of the Mouse (Jpn ver, to be used with RPGs, it
-    can aslo be used as trackball) and a 3 buttons version (US ver, no trackball feats.) */
-
 	PORT_START("RESET")     // Buttons on Mega Drive console
 	PORT_BIT( 0x0001, IP_ACTIVE_HIGH, IPT_SERVICE1 ) PORT_NAME("Reset Button") PORT_IMPULSE(1) // reset, resets 68k (and..?)
 INPUT_PORTS_END
@@ -89,8 +80,7 @@ void md_cons_state::machine_start()
 	if (m_cart)
 		m_cart->save_nvram();
 
-	if (m_z80snd)
-		m_genz80.z80_run_timer = timer_alloc(FUNC(md_base_state::megadriv_z80_run_state), this);
+	m_genz80.z80_run_timer = timer_alloc(FUNC(md_cons_state::megadriv_z80_run_state), this);
 }
 
 void md_cons_state::install_cartslot()

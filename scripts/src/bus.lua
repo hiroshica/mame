@@ -354,6 +354,12 @@ if (BUSES["ARCHIMEDES_PODULE"]~=null) then
 		MAME_DIR .. "src/devices/bus/archimedes/podule/eaglem2.h",
 		MAME_DIR .. "src/devices/bus/archimedes/podule/ether1.cpp",
 		MAME_DIR .. "src/devices/bus/archimedes/podule/ether1.h",
+		MAME_DIR .. "src/devices/bus/archimedes/podule/ether2.cpp",
+		MAME_DIR .. "src/devices/bus/archimedes/podule/ether2.h",
+		MAME_DIR .. "src/devices/bus/archimedes/podule/ether3.cpp",
+		MAME_DIR .. "src/devices/bus/archimedes/podule/ether3.h",
+		MAME_DIR .. "src/devices/bus/archimedes/podule/ethera.cpp",
+		MAME_DIR .. "src/devices/bus/archimedes/podule/ethera.h",
 		MAME_DIR .. "src/devices/bus/archimedes/podule/etherd.cpp",
 		MAME_DIR .. "src/devices/bus/archimedes/podule/etherd.h",
 		MAME_DIR .. "src/devices/bus/archimedes/podule/etherr.cpp",
@@ -667,6 +673,10 @@ if (BUSES["BBC_1MHZBUS"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/1mhzbus.cpp",
 		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/1mhzbus.h",
+		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/24bbc.cpp",
+		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/24bbc.h",
+		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/2ndserial.cpp",
+		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/2ndserial.h",
 		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/autoprom.cpp",
 		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/autoprom.h",
 		MAME_DIR .. "src/devices/bus/bbc/1mhzbus/beebopl.cpp",
@@ -1815,6 +1825,8 @@ if (BUSES["MSX_CTRL"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/bus/msx/ctrl/ctrl.cpp",
 		MAME_DIR .. "src/devices/bus/msx/ctrl/ctrl.h",
+		MAME_DIR .. "src/devices/bus/msx/ctrl/hypershot.cpp",
+		MAME_DIR .. "src/devices/bus/msx/ctrl/hypershot.h",
 		MAME_DIR .. "src/devices/bus/msx/ctrl/joystick.cpp",
 		MAME_DIR .. "src/devices/bus/msx/ctrl/joystick.h",
 		MAME_DIR .. "src/devices/bus/msx/ctrl/libbler.cpp",
@@ -1827,6 +1839,8 @@ if (BUSES["MSX_CTRL"]~=null) then
 		MAME_DIR .. "src/devices/bus/msx/ctrl/towns6b.h",
 		MAME_DIR .. "src/devices/bus/msx/ctrl/townspad.cpp",
 		MAME_DIR .. "src/devices/bus/msx/ctrl/townspad.h",
+		MAME_DIR .. "src/devices/bus/msx/ctrl/xe1ap.cpp",
+		MAME_DIR .. "src/devices/bus/msx/ctrl/xe1ap.h",
 	}
 end
 
@@ -3535,6 +3549,10 @@ if (BUSES["SMS_CTRL"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/bus/sms_ctrl/controllers.cpp",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/controllers.h",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/diypaddle.cpp",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/diypaddle.h",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/hypershot.cpp",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/hypershot.h",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/graphic.cpp",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/graphic.h",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/joypad.cpp",
@@ -3545,6 +3563,8 @@ if (BUSES["SMS_CTRL"]~=null) then
 		MAME_DIR .. "src/devices/bus/sms_ctrl/md6bt.h",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/mdpad.cpp",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/mdpad.h",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/mouse.cpp",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/mouse.h",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/multitap.cpp",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/multitap.h",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/paddle.cpp",
@@ -3559,6 +3579,10 @@ if (BUSES["SMS_CTRL"]~=null) then
 		MAME_DIR .. "src/devices/bus/sms_ctrl/sports.h",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/sportsjp.cpp",
 		MAME_DIR .. "src/devices/bus/sms_ctrl/sportsjp.h",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/teamplayer.cpp",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/teamplayer.h",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/xe1ap.cpp",
+		MAME_DIR .. "src/devices/bus/sms_ctrl/xe1ap.h",
 	}
 end
 
@@ -3818,20 +3842,6 @@ end
 
 ---------------------------------------------------
 --
---@src/devices/bus/gamegear/ggext.h,BUSES["GAMEGEAR"] = true
----------------------------------------------------
-
-if (BUSES["GAMEGEAR"]~=null) then
-	files {
-		MAME_DIR .. "src/devices/bus/gamegear/ggext.cpp",
-		MAME_DIR .. "src/devices/bus/gamegear/ggext.h",
-		MAME_DIR .. "src/devices/bus/gamegear/smsctrladp.cpp",
-		MAME_DIR .. "src/devices/bus/gamegear/smsctrladp.h",
-	}
-end
-
----------------------------------------------------
---
 --@src/devices/bus/gba/gba_slot.h,BUSES["GBA"] = true
 ---------------------------------------------------
 
@@ -4042,6 +4052,30 @@ if (BUSES["PCE"]~=null) then
 		MAME_DIR .. "src/devices/bus/pce/pce_slot.h",
 		MAME_DIR .. "src/devices/bus/pce/pce_rom.cpp",
 		MAME_DIR .. "src/devices/bus/pce/pce_rom.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/bus/pce_ctrl/pcectrl.h,BUSES["PCE_CTRL"] = true
+---------------------------------------------------
+
+if (BUSES["PCE_CTRL"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/bus/pce_ctrl/pcectrl.cpp",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/pcectrl.h",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/joypad2.cpp",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/joypad2.h",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/joypad6.cpp",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/joypad6.h",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/mouse.cpp",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/mouse.h",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/multitap.cpp",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/multitap.h",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/pachinko.cpp",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/pachinko.h",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/xhe3.cpp",
+		MAME_DIR .. "src/devices/bus/pce_ctrl/xhe3.h",
 	}
 end
 
@@ -5067,26 +5101,6 @@ if (BUSES["THOMSON"]~=null) then
 		MAME_DIR .. "src/devices/bus/thomson/rf57_932.h",
 		MAME_DIR .. "src/devices/bus/thomson/speech.cpp",
 		MAME_DIR .. "src/devices/bus/thomson/speech.h",
-	}
-end
-
----------------------------------------------------
---
---@src/devices/bus/pce_ctrl/pcectrl.h,BUSES["PCE_CTRL"] = true
----------------------------------------------------
-
-if (BUSES["PCE_CTRL"]~=null) then
-	files {
-		MAME_DIR .. "src/devices/bus/pce_ctrl/pcectrl.cpp",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/pcectrl.h",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/joypad2.cpp",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/joypad2.h",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/joypad6.cpp",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/joypad6.h",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/multitap.cpp",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/multitap.h",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/pachinko.cpp",
-		MAME_DIR .. "src/devices/bus/pce_ctrl/pachinko.h",
 	}
 end
 
