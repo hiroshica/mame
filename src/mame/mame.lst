@@ -37873,6 +37873,7 @@ tkingb
 sstar28k
 sstar36k
 tstar432
+tstar432a
 
 @source:samcoupe/samcoupe.cpp
 samcoupe                        // 1989 Sam Coupe
@@ -40088,6 +40089,7 @@ hanaawas                        // (c) SetaKikaku
 
 @source:seta/jclub2.cpp
 darkhors                        // bootleg of Jockey Club II
+jclub2bl                        // bootleg of Jockey Club II
 jclub2v100                      // v1.00       5 OCT. 1994
 jclub2v101                      // v1.01      20 FEB. 1995
 jclub2v110                      // v1.10X      5 MAY. 1996
