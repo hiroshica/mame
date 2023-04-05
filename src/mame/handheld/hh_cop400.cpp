@@ -42,6 +42,7 @@ TODO:
 #include "lafootb.lh"
 #include "lchicken.lh" // clickable
 #include "lightfgt.lh" // clickable
+#include "lilcomp.lh"
 #include "mbaskb2.lh"
 #include "mdallas.lh"
 #include "msoccer2.lh"
@@ -66,7 +67,8 @@ public:
 		m_inputs(*this, "IN.%u", 0)
 	{ }
 
-	virtual DECLARE_INPUT_CHANGED_MEMBER(reset_button);
+	DECLARE_INPUT_CHANGED_MEMBER(reset_button);
+	DECLARE_INPUT_CHANGED_MEMBER(power_button);
 
 protected:
 	virtual void machine_start() override;
@@ -87,6 +89,7 @@ protected:
 	u16 m_inp_mux = ~0;             // multiplexed inputs mask
 
 	u16 read_inputs(int columns, u16 colmask = ~0);
+	void set_power(bool state);
 };
 
 
@@ -105,6 +108,7 @@ void hh_cop400_state::machine_start()
 
 void hh_cop400_state::machine_reset()
 {
+	set_power(true);
 }
 
 
@@ -134,6 +138,19 @@ INPUT_CHANGED_MEMBER(hh_cop400_state::reset_button)
 {
 	// when an input is directly wired to MCU reset pin
 	m_maincpu->set_input_line(INPUT_LINE_RESET, newval ? ASSERT_LINE : CLEAR_LINE);
+}
+
+INPUT_CHANGED_MEMBER(hh_cop400_state::power_button)
+{
+	set_power((bool)param);
+}
+
+void hh_cop400_state::set_power(bool state)
+{
+	m_maincpu->set_input_line(INPUT_LINE_RESET, state ? CLEAR_LINE : ASSERT_LINE);
+
+	if (m_display && !state)
+		m_display->clear();
 }
 
 
@@ -190,7 +207,7 @@ u8 ctstein_state::read_l()
 	return read_inputs(3, 0xf) << 4 | 0xf;
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( ctstein )
 	PORT_START("IN.0") // G0 port L
@@ -211,6 +228,8 @@ static INPUT_PORTS_START( ctstein )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("Green Button")
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("Blue Button")
 INPUT_PORTS_END
+
+// config
 
 void ctstein_state::ctstein(machine_config &config)
 {
@@ -245,7 +264,7 @@ ROM_END
 /***************************************************************************
 
   Coleco Head to Head: Electronic Basketball/Hockey/Soccer (model 2150/2160/2170)
-  * COP420 MCU label COP420L-NEZ/N
+  * COP420L MCU label COP420L-NEZ/N
   * 2-digit 7seg display, 41 other leds, 1-bit sound
 
   3 Head to Head games were released using this MCU/ROM. They play very much
@@ -309,7 +328,7 @@ u8 h2hbaskbc_state::read_in()
 	return read_inputs(4, 7) | (m_inputs[4]->read() & 8);
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( h2hbaskbc )
 	PORT_START("IN.0") // G0 port IN
@@ -359,6 +378,8 @@ static INPUT_PORTS_START( h2hsoccerc )
 	PORT_MODIFY("IN.1")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_CUSTOM )
 INPUT_PORTS_END
+
+// config
 
 void h2hbaskbc_state::h2hbaskbc(machine_config &config)
 {
@@ -482,7 +503,7 @@ void einvaderc_state::write_l(u8 data)
 	update_display();
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( einvaderc )
 	PORT_START("IN.0") // port IN
@@ -493,6 +514,8 @@ static INPUT_PORTS_START( einvaderc )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_16WAY
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON1 )
 INPUT_PORTS_END
+
+// config
 
 void einvaderc_state::einvaderc(machine_config &config)
 {
@@ -614,7 +637,7 @@ u8 unkeinv_state::read_l()
 	return ret & ~m_l;
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( unkeinv )
 	PORT_START("IN.0")
@@ -623,6 +646,8 @@ static INPUT_PORTS_START( unkeinv )
 	PORT_START("IN.1")
 	PORT_BIT( 0x0f, 0x00, IPT_POSITIONAL ) PORT_POSITIONS(12) PORT_SENSITIVITY(10) PORT_KEYDELTA(1) PORT_CENTERDELTA(0)
 INPUT_PORTS_END
+
+// config
 
 void unkeinv_state::unkeinv(machine_config &config)
 {
@@ -754,7 +779,7 @@ u8 lchicken_state::read_g()
 	return read_inputs(4, m_g);
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( lchicken )
 	PORT_START("IN.0") // D0 port G
@@ -781,6 +806,8 @@ static INPUT_PORTS_START( lchicken )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_READ_LINE_MEMBER(lchicken_state, motor_switch_r)
 INPUT_PORTS_END
+
+// config
 
 void lchicken_state::lchicken(machine_config &config)
 {
@@ -884,7 +911,7 @@ u8 funjacks_state::read_g()
 	return m_inputs[3]->read() | (m_g & 2);
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( funjacks )
 	PORT_START("IN.0") // D0 port L
@@ -907,6 +934,8 @@ static INPUT_PORTS_START( funjacks )
 	PORT_CONFSETTING(    0x08, "1" )
 	PORT_CONFSETTING(    0x00, "2" )
 INPUT_PORTS_END
+
+// config
 
 void funjacks_state::funjacks(machine_config &config)
 {
@@ -995,7 +1024,7 @@ void funrlgl_state::write_g(u8 data)
 	m_speaker->level_w(data >> 3 & 1);
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( funrlgl )
 	PORT_START("IN.0") // port G
@@ -1009,6 +1038,8 @@ static INPUT_PORTS_START( funrlgl )
 	PORT_START("RESET")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_START ) PORT_CHANGED_MEMBER(DEVICE_SELF, hh_cop400_state, reset_button, 0)
 INPUT_PORTS_END
+
+// config
 
 void funrlgl_state::funrlgl(machine_config &config)
 {
@@ -1109,7 +1140,7 @@ u8 funtag_state::read_g()
 	return read_inputs(3, 3) | m_inputs[3]->read() | 4;
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( funtag )
 	PORT_START("IN.0") // D0 port G
@@ -1132,6 +1163,8 @@ static INPUT_PORTS_START( funtag )
 	PORT_CONFSETTING(    0x04, "1" )
 	PORT_CONFSETTING(    0x00, "2" )
 INPUT_PORTS_END
+
+// config
 
 void funtag_state::funtag(machine_config &config)
 {
@@ -1256,7 +1289,7 @@ u8 mbaskb2_state::sub_read_in()
 	return read_inputs(3, 0xf);
 }
 
-// config
+// inputs
 
 CUSTOM_INPUT_MEMBER(mbaskb2_state::switch_r)
 {
@@ -1297,6 +1330,8 @@ static INPUT_PORTS_START( msoccer2 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2) PORT_NAME("Score")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(2) PORT_NAME("Teammate")
 INPUT_PORTS_END
+
+// config
 
 void mbaskb2_state::mbaskb2(machine_config &config)
 {
@@ -1418,7 +1453,7 @@ u8 lafootb_state::read_g()
 	return read_inputs(2, 7) | (m_inputs[2]->read() & 8);
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( lafootb )
 	PORT_START("IN.0") // D2 port G
@@ -1436,6 +1471,8 @@ static INPUT_PORTS_START( lafootb )
 	PORT_CONFSETTING(    0x08, "1" )
 	PORT_CONFSETTING(    0x00, "2" )
 INPUT_PORTS_END
+
+// config
 
 void lafootb_state::lafootb(machine_config &config)
 {
@@ -1481,7 +1518,7 @@ ROM_END
 /***************************************************************************
 
   Mattel Dalla$ (J.R. handheld)
-  * COP444 MCU label COP444L-HYN/N
+  * COP444L MCU label COP444L-HYN/N
   * 8-digit 7seg display, 1-bit sound
 
   This is a board game, only the handheld device is emulated here.
@@ -1541,7 +1578,7 @@ u8 mdallas_state::read_in()
 	return read_inputs(6, 0xf);
 }
 
-// config
+// inputs
 
 /* physical button layout and labels are like this:
 
@@ -1590,6 +1627,8 @@ static INPUT_PORTS_START( mdallas )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_E) PORT_NAME("South") // S
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_W) PORT_NAME("North") // N
 INPUT_PORTS_END
+
+// config
 
 void mdallas_state::mdallas(machine_config &config)
 {
@@ -1668,7 +1707,7 @@ u8 plus1_state::read_l()
 	return m_inputs[1]->read() & m_l;
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( plus1 )
 	PORT_START("IN.0") // port G
@@ -1684,6 +1723,8 @@ static INPUT_PORTS_START( plus1 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("Sensor Position Yellow")
 	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
+
+// config
 
 void plus1_state::plus1(machine_config &config)
 {
@@ -1717,7 +1758,7 @@ ROM_END
 
   Milton Bradley Electronic Lightfight
   * COP421L MCU label /B119 COP421L-HLA/N
-  * LED matrix, 1-bit sound
+  * 5*5 leds, 1-bit sound
 
   Xbox-shaped electronic game for 2 or more players, with long diagonal buttons
   next to each outer LED. The main object of the game is to pinpoint a light
@@ -1787,7 +1828,7 @@ u8 lightfgt_state::read_g()
 	return read_inputs(5, 0xf);
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( lightfgt )
 	PORT_START("IN.0") // SO port G
@@ -1820,6 +1861,8 @@ static INPUT_PORTS_START( lightfgt )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_COCKTAIL
 INPUT_PORTS_END
+
+// config
 
 void lightfgt_state::lightfgt(machine_config &config)
 {
@@ -1915,7 +1958,7 @@ WRITE_LINE_MEMBER(bshipg_state::write_so)
 	m_display->matrix(1, state);
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( bshipg )
 	PORT_START("IN.0") // D0 ports L,IN
@@ -1977,6 +2020,8 @@ static INPUT_PORTS_START( bshipg )
 	PORT_START("IN.4") // SI
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_TOGGLE PORT_CODE(KEYCODE_F1) PORT_NAME("Load/Go") // switch
 INPUT_PORTS_END
+
+// config
 
 void bshipg_state::bshipg(machine_config &config)
 {
@@ -2082,7 +2127,7 @@ WRITE_LINE_MEMBER(qkracer_state::write_sk)
 	update_display();
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( qkracer )
 	PORT_START("IN.0") // D3 port IN
@@ -2115,6 +2160,8 @@ static INPUT_PORTS_START( qkracer )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_0) PORT_CODE(KEYCODE_0_PAD) PORT_NAME("0")
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_PLUS_PAD) PORT_NAME("+")
 INPUT_PORTS_END
+
+// config
 
 void qkracer_state::qkracer(machine_config &config)
 {
@@ -2150,7 +2197,7 @@ ROM_END
 /***************************************************************************
 
   National Semiconductor COPS Pocket Assistant (CPA)
-  * COP444 MCU label COP444L-JXY/N
+  * COP444L MCU label COP444L-JXY/N
   * 8-digit 7seg display, 1-bit sound
 
   It's a programmable COP400 series MCU simulator, on a COP400 series MCU.
@@ -2161,7 +2208,7 @@ ROM_END
 
 // handlers: see mdallas_state
 
-// config
+// inputs
 
 static INPUT_PORTS_START( copspa )
 	PORT_START("IN.0") // G0 port IN
@@ -2291,7 +2338,7 @@ void scat_state::main_map(address_map &map)
 	map(0x0000, 0x07ff).rom();
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( solution )
 	PORT_START("IN.0") // D0 port IN
@@ -2330,6 +2377,8 @@ static INPUT_PORTS_START( solution )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_D) PORT_NAME("Dil. Wntd.")
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_BACKSPACE) PORT_CODE(KEYCODE_DEL) PORT_NAME("CE/C")
 INPUT_PORTS_END
+
+// config
 
 void scat_state::scat(machine_config &config)
 {
@@ -2422,7 +2471,7 @@ WRITE_LINE_MEMBER(vidchal_state::write_sk)
 	update_display();
 }
 
-// config
+// inputs
 
 static INPUT_PORTS_START( vidchal )
 	PORT_START("IN.0") // port IN
@@ -2431,6 +2480,8 @@ static INPUT_PORTS_START( vidchal )
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_OTHER) PORT_CODE(KEYCODE_F1) PORT_NAME("Light Sensor")
 INPUT_PORTS_END
+
+// config
 
 void vidchal_state::vidchal(machine_config &config)
 {
@@ -2458,6 +2509,150 @@ void vidchal_state::vidchal(machine_config &config)
 ROM_START( vidchal )
 	ROM_REGION( 0x0400, "maincpu", 0 )
 	ROM_LOAD( "cop420-tdx_n", 0x0000, 0x0400, CRC(c9bd041c) SHA1(ab0dcaf4741620fa4c28ab75337a23d646af7626) )
+ROM_END
+
+
+
+
+
+/***************************************************************************
+
+  Texas Instruments My Little Computer
+  * PCB label: 1066659-4, 17-92-81
+  * COP444L MCU label COP444L 1066666
+  * 4*4 leds, 1-bit sound
+
+  It's an educational toy for young children. Overlays were included for the
+  mini games, MAME external artwork is required for these.
+
+  Strangely, TI didn't use their own brand MCU for this toy.
+
+***************************************************************************/
+
+class lilcomp_state : public hh_cop400_state
+{
+public:
+	lilcomp_state(const machine_config &mconfig, device_type type, const char *tag) :
+		hh_cop400_state(mconfig, type, tag),
+		m_power_timer(*this, "power")
+	{ }
+
+	void lilcomp(machine_config &config);
+
+private:
+	required_device<timer_device> m_power_timer;
+
+	void update_display();
+	void write_d(u8 data);
+	void write_l(u8 data);
+	void write_g(u8 data);
+	u8 read_g();
+	DECLARE_WRITE_LINE_MEMBER(write_sk);
+
+	TIMER_DEVICE_CALLBACK_MEMBER(power_off) { set_power(false); }
+};
+
+// handlers
+
+void lilcomp_state::update_display()
+{
+	m_display->matrix(m_l >> 4, ~m_d);
+}
+
+void lilcomp_state::write_d(u8 data)
+{
+	// D: led data
+	m_d = data;
+	update_display();
+}
+
+void lilcomp_state::write_l(u8 data)
+{
+	// L0-L2: input mux
+	// L3: N/C
+	m_inp_mux = data & 7;
+
+	// L4-L7: led select
+	m_l = data;
+	update_display();
+}
+
+void lilcomp_state::write_g(u8 data)
+{
+	m_g = data;
+}
+
+u8 lilcomp_state::read_g()
+{
+	// G: multiplexed inputs
+	return read_inputs(3, m_g);
+}
+
+WRITE_LINE_MEMBER(lilcomp_state::write_sk)
+{
+	if (state == m_sk)
+		return;
+
+	// SK: trigger power off after a short delay (since it also toggles at boot)
+	m_power_timer->adjust(state ? attotime::from_msec(100) : attotime::never);
+	m_sk = state;
+}
+
+// inputs
+
+static INPUT_PORTS_START( lilcomp )
+	PORT_START("IN.0") // L0 port G
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_DOWN) PORT_NAME("Cursor Down")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_RIGHT) PORT_NAME("Cursor Right")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_UP) PORT_NAME("Cursor Up")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_LEFT) PORT_NAME("Cursor Left")
+
+	PORT_START("IN.1") // L1 port G
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_POWER_OFF )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_ENTER) PORT_CODE(KEYCODE_ENTER_PAD) PORT_NAME("Go")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_5) PORT_CODE(KEYCODE_5_PAD) PORT_NAME("Code 5")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("IN.2") // L2 port G
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_1) PORT_CODE(KEYCODE_1_PAD) PORT_NAME("Code 1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_4) PORT_CODE(KEYCODE_4_PAD) PORT_NAME("Code 4")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_3) PORT_CODE(KEYCODE_3_PAD) PORT_NAME("Code 3")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_CODE(KEYCODE_2) PORT_CODE(KEYCODE_2_PAD) PORT_NAME("Code 2")
+
+	PORT_START("IN.3")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_POWER_ON ) PORT_CHANGED_MEMBER(DEVICE_SELF, hh_cop400_state, power_button, true)
+INPUT_PORTS_END
+
+// config
+
+void lilcomp_state::lilcomp(machine_config &config)
+{
+	// basic machine hardware
+	COP444L(config, m_maincpu, 800000); // approximation - RC osc. R=46.4K, C=100pF
+	m_maincpu->set_config(COP400_CKI_DIVISOR_16, COP400_CKO_OSCILLATOR_OUTPUT, false); // guessed
+	m_maincpu->write_d().set(FUNC(lilcomp_state::write_d));
+	m_maincpu->write_l().set(FUNC(lilcomp_state::write_l));
+	m_maincpu->write_g().set(FUNC(lilcomp_state::write_g));
+	m_maincpu->read_g().set(FUNC(lilcomp_state::read_g));
+	m_maincpu->write_sk().set(FUNC(lilcomp_state::write_sk));
+	m_maincpu->write_so().set(m_speaker, FUNC(speaker_sound_device::level_w));
+
+	TIMER(config, "power").configure_generic(FUNC(lilcomp_state::power_off));
+
+	// video hardware
+	PWM_DISPLAY(config, m_display).set_size(4, 4);
+	config.set_default_layout(layout_lilcomp);
+
+	// sound hardware
+	SPEAKER(config, "mono").front_center();
+	SPEAKER_SOUND(config, m_speaker).add_route(ALL_OUTPUTS, "mono", 0.25);
+}
+
+// roms
+
+ROM_START( lilcomp )
+	ROM_REGION( 0x0800, "maincpu", 0 )
+	ROM_LOAD( "cop444l_1066666", 0x0000, 0x0800, CRC(fb4674d2) SHA1(2c38c2f0bd4222166298a50dec88339b06362005) )
 ROM_END
 
 
@@ -2501,6 +2696,8 @@ COMP( 1982, copspa,     0,         0, mdallas,    copspa,     mdallas_state,   e
 COMP( 1984, solution,   0,         0, scat,       solution,   scat_state,      empty_init, "SCAT", "The Solution", MACHINE_SUPPORTS_SAVE | MACHINE_NO_SOUND_HW )
 
 CONS( 1987, vidchal,    0,         0, vidchal,    vidchal,    vidchal_state,   empty_init, "Select Merchandise", "Video Challenger", MACHINE_SUPPORTS_SAVE | MACHINE_NOT_WORKING )
+
+CONS( 1989, lilcomp,    0,         0, lilcomp,    lilcomp,    lilcomp_state,   empty_init, "Texas Instruments", "My Little Computer", MACHINE_SUPPORTS_SAVE | MACHINE_REQUIRES_ARTWORK )
 
 // ***: As far as MAME is concerned, the game is emulated fine. But for it to be playable, it requires interaction
 // with other, unemulatable, things eg. game board/pieces, book, playing cards, pen & paper, etc.

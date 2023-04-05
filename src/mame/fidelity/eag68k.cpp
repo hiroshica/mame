@@ -607,7 +607,7 @@ void eag_state::eag_base(machine_config &config)
 {
 	/* basic machine hardware */
 	M68000(config, m_maincpu, 16_MHz_XTAL);
-	m_maincpu->disable_interrupt_mixer();
+	m_maincpu->set_interrupt_mixer(false);
 	m_maincpu->set_addrmap(AS_PROGRAM, &eag_state::eag_map);
 
 	auto &irq_clock(CLOCK(config, "irq_clock", 4.9152_MHz_XTAL / 0x2000)); // 4060 Q13, 600Hz
@@ -669,7 +669,7 @@ void eagv5_state::eagv5(machine_config &config)
 
 	// gen_latch syncs on write, but this is still needed with tight cpu comms
 	// (not that it locks up or anything, but it will calculate moves much slower if timing is off)
-	config.set_perfect_quantum(m_maincpu);
+	config.set_maximum_quantum(attotime::from_hz(m_maincpu->clock() / 4));
 }
 
 void eag_state::eagv7(machine_config &config)
@@ -678,7 +678,7 @@ void eag_state::eagv7(machine_config &config)
 
 	/* basic machine hardware */
 	M68020(config.replace(), m_maincpu, 20_MHz_XTAL); // also seen with 25MHz XTAL
-	m_maincpu->disable_interrupt_mixer();
+	m_maincpu->set_interrupt_mixer(false);
 	m_maincpu->set_addrmap(AS_PROGRAM, &eag_state::eagv7_map);
 }
 
@@ -688,7 +688,7 @@ void eag_state::eagv9(machine_config &config)
 
 	/* basic machine hardware */
 	M68030(config.replace(), m_maincpu, 32_MHz_XTAL); // also seen with 40MHz XTAL
-	m_maincpu->disable_interrupt_mixer();
+	m_maincpu->set_interrupt_mixer(false);
 	m_maincpu->set_addrmap(AS_PROGRAM, &eag_state::eagv7_map);
 }
 
@@ -698,7 +698,7 @@ void eag_state::eagv10(machine_config &config)
 
 	/* basic machine hardware */
 	M68040(config.replace(), m_maincpu, 25_MHz_XTAL);
-	m_maincpu->disable_interrupt_mixer();
+	m_maincpu->set_interrupt_mixer(false);
 	m_maincpu->set_addrmap(AS_PROGRAM, &eag_state::eagv10_map);
 }
 

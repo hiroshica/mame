@@ -430,6 +430,7 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER(key_pressed);
 
 	template<int Index> void upd7759_reset_w(uint8_t data);
+	template<int Index> void upd7759_start_w(uint8_t data);
 	template<int Index> void upd7759_data_w(uint8_t data);
 	template<int Index> DECLARE_WRITE_LINE_MEMBER(upd7759_drq_w);
 	template<int Index> void okim6258_clock_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
@@ -2770,7 +2771,7 @@ QUICKLOAD_LOAD_MEMBER(vgmplay_state::load_file)
 		image.fread(&m_file_data[0], image.length()) != image.length())
 	{
 		m_file_data.clear();
-		return image_init_result::FAIL;
+		return image_error::UNSPECIFIED;
 	}
 	else
 	{
@@ -2794,7 +2795,7 @@ QUICKLOAD_LOAD_MEMBER(vgmplay_state::load_file)
 			{
 				logerror("gzip header but not a gzip file\n");
 				m_file_data.clear();
-				return image_init_result::FAIL;
+				return image_error::INVALIDIMAGE;
 			}
 			do
 			{
@@ -2809,7 +2810,7 @@ QUICKLOAD_LOAD_MEMBER(vgmplay_state::load_file)
 			{
 				logerror("broken gzip file\n");
 				m_file_data.clear();
-				return image_init_result::FAIL;
+				return image_error::INVALIDIMAGE;
 			}
 			m_file_data.resize(str.total_out);
 			memcpy(&m_file_data[0], &decomp[0], str.total_out);
@@ -2819,10 +2820,10 @@ QUICKLOAD_LOAD_MEMBER(vgmplay_state::load_file)
 		{
 			logerror("Not a vgm/vgz file\n");
 			m_file_data.clear();
-			return image_init_result::FAIL;
+			return image_error::INVALIDIMAGE;
 		}
 
-		uint32_t version = r32(8);
+		uint32_t const version = r32(8);
 		logerror("File version %x.%02x\n", version >> 8, version & 0xff);
 
 		uint32_t data_start = version >= 0x150 ? r32(0x34) + 0x34 : 0x40;
@@ -2834,52 +2835,58 @@ QUICKLOAD_LOAD_MEMBER(vgmplay_state::load_file)
 		else if (volbyte > 0xc1)
 			volbyte -= 0x100;
 
-		float volume = version >= 0x160 && data_start >= 0x7d ? powf(2.0f, float(volbyte) / float(0x20)) : 1.0f;
+		float const volume = version >= 0x160 && data_start >= 0x7d ? powf(2.0f, float(volbyte) / float(0x20)) : 1.0f;
 
-		uint32_t extra_header_start = version >= 0x170 && data_start >= 0xc0 && r32(0xbc) ? r32(0xbc) + 0xbc : 0;
-		uint32_t header_size = extra_header_start ? extra_header_start : data_start;
+		uint32_t const extra_header_start = version >= 0x170 && data_start >= 0xc0 && r32(0xbc) ? r32(0xbc) + 0xbc : 0;
+		uint32_t const header_size = extra_header_start ? extra_header_start : data_start;
 
-		uint32_t extra_header_size = extra_header_start ? r32(extra_header_start) : 0;
-		uint32_t chip_clock_start = extra_header_size >= 4 && r32(extra_header_start + 4) ? r32(extra_header_start + 4) + extra_header_start + 4: 0;
-		uint32_t chip_volume_start = extra_header_size >= 8 && r32(extra_header_start + 8) ? r32(extra_header_start + 8) + extra_header_start + 8 : 0;
+		uint32_t const extra_header_size = extra_header_start ? r32(extra_header_start) : 0;
+		uint32_t const chip_clock_start = extra_header_size >= 4 && r32(extra_header_start + 4) ? r32(extra_header_start + 4) + extra_header_start + 4: 0;
+		uint32_t const chip_volume_start = extra_header_size >= 8 && r32(extra_header_start + 8) ? r32(extra_header_start + 8) + extra_header_start + 8 : 0;
 
 		if (chip_volume_start != 0)
 			osd_printf_warning("Warning: file has unsupported chip volumes\n");
 
-		const auto&& setup_device([&](device_t &device, int chip_num, vgm_chip chip_type, uint32_t offset, uint32_t min_version = 0)
-		{
-			uint32_t c = 0;
-			float chip_volume = volume;
-			bool has_2chip = false;
+		const auto setup_device(
+				[this, version, volume, header_size, chip_clock_start] (
+						device_t &device,
+						int chip_num,
+						vgm_chip chip_type,
+						uint32_t offset,
+						uint32_t min_version = 0)
+				{
+					uint32_t c = 0;
+					float chip_volume = volume;
+					bool has_2chip = false;
 
-			if (min_version <= version && offset + 4 <= header_size && (chip_num == 0 || (r32(offset) & 0x40000000) != 0))
-			{
-				c =  r32(offset);
-				has_2chip = (c & 0x40000000) != 0;
-
-				if (chip_clock_start && chip_num != 0)
-					for (auto i(0); i < r8(chip_clock_start); i++)
+					if (min_version <= version && offset + 4 <= header_size && (chip_num == 0 || (r32(offset) & 0x40000000) != 0))
 					{
-						if (r8(chip_clock_start + 1 + (i * 5)) == chip_type)
-						{
-							c = r32(chip_clock_start + 2 + (i * 5));
-							break;
-						}
+						c =  r32(offset);
+						has_2chip = (c & 0x40000000) != 0;
+
+						if (chip_clock_start && chip_num != 0)
+							for (auto i(0); i < r8(chip_clock_start); i++)
+							{
+								if (r8(chip_clock_start + 1 + (i * 5)) == chip_type)
+								{
+									c = r32(chip_clock_start + 2 + (i * 5));
+									break;
+								}
+							}
 					}
-			}
 
-			if (has_2chip)
-			{
-				chip_volume /= 2.0f;
-			}
-			device.set_unscaled_clock(c & ~0xc0000000);
-			if (device.unscaled_clock() != 0)
-				dynamic_cast<device_sound_interface *>(&device)->set_output_gain(ALL_OUTPUTS, chip_volume);
-			else
-				dynamic_cast<device_sound_interface *>(&device)->set_output_gain(ALL_OUTPUTS, 0);
+					if (has_2chip)
+					{
+						chip_volume /= 2.0f;
+					}
+					device.set_unscaled_clock(c & ~0xc0000000);
+					if (device.unscaled_clock() != 0)
+						dynamic_cast<device_sound_interface *>(&device)->set_output_gain(ALL_OUTPUTS, chip_volume);
+					else
+						dynamic_cast<device_sound_interface *>(&device)->set_output_gain(ALL_OUTPUTS, 0);
 
-			return (c & 0x80000000) != 0;
-		});
+					return (c & 0x80000000) != 0;
+				});
 
 		// Parse clocks
 		if (setup_device(*m_sn76489[0], 0, CT_SN76489, 0x0c) ||
@@ -2955,8 +2962,6 @@ QUICKLOAD_LOAD_MEMBER(vgmplay_state::load_file)
 		setup_device(*m_upd7759[1], 1, CT_UPD7759, 0x8c, 0x161);
 		m_upd7759_md[0] = r32(0x8c) & 0x80000000 ? 0 : 1;
 		m_upd7759_md[1] = r32(0x8c) & 0x80000000 ? 0 : 1;
-		m_upd7759[0]->md_w(m_upd7759_md[0]);
-		m_upd7759[1]->md_w(m_upd7759_md[1]);
 
 		setup_device(*m_okim6258[0], 0, CT_OKIM6258, 0x90, 0x161);
 		setup_device(*m_okim6258[1], 1, CT_OKIM6258, 0x90, 0x161);
@@ -3071,7 +3076,7 @@ QUICKLOAD_LOAD_MEMBER(vgmplay_state::load_file)
 
 		machine().schedule_soft_reset();
 
-		return image_init_result::PASS;
+		return std::error_condition();
 	}
 }
 
@@ -3122,6 +3127,18 @@ void vgmplay_state::upd7759_reset_w(uint8_t data)
 		if (!reset)
 			std::queue<uint8_t>().swap(m_upd7759_slave_data[Index]);
 	}
+}
+
+template<int Index>
+void vgmplay_state::upd7759_start_w(uint8_t data)
+{
+	int start = data != 0;
+
+	// substitute ST with MD when in slave mode
+	if (m_upd7759_md[Index])
+		m_upd7759[Index]->start_w(start);
+	else
+		m_upd7759[Index]->md_w(!start);
 }
 
 template<int Index>
@@ -3392,11 +3409,11 @@ void vgmplay_state::soundchips_map(address_map &map)
 	map(vgmplay_device::A_MULTIPCM_1 + 4, vgmplay_device::A_MULTIPCM_1 + 7).w("vgmplay", FUNC(vgmplay_device::multipcm_bank_hi_w<1>));
 	map(vgmplay_device::A_MULTIPCM_1 + 8, vgmplay_device::A_MULTIPCM_1 + 11).w("vgmplay", FUNC(vgmplay_device::multipcm_bank_lo_w<1>));
 	map(vgmplay_device::A_UPD7759_0 + 0, vgmplay_device::A_UPD7759_0 + 0).w(FUNC(vgmplay_state::upd7759_reset_w<0>));
-	map(vgmplay_device::A_UPD7759_0 + 1, vgmplay_device::A_UPD7759_0 + 1).lw8(NAME([this](uint8_t data) {m_upd7759[0]->start_w(data != 0); }));
+	map(vgmplay_device::A_UPD7759_0 + 1, vgmplay_device::A_UPD7759_0 + 1).w(FUNC(vgmplay_state::upd7759_start_w<0>));
 	map(vgmplay_device::A_UPD7759_0 + 2, vgmplay_device::A_UPD7759_0 + 2).w(FUNC(vgmplay_state::upd7759_data_w<0>));
 	map(vgmplay_device::A_UPD7759_0 + 3, vgmplay_device::A_UPD7759_0 + 3).w("vgmplay", FUNC(vgmplay_device::upd7759_bank_w<0>));
 	map(vgmplay_device::A_UPD7759_1 + 0, vgmplay_device::A_UPD7759_1 + 0).w(FUNC(vgmplay_state::upd7759_reset_w<1>));
-	map(vgmplay_device::A_UPD7759_1 + 1, vgmplay_device::A_UPD7759_1 + 1).lw8(NAME([this](uint8_t data) {m_upd7759[1]->start_w(data != 0); }));
+	map(vgmplay_device::A_UPD7759_1 + 1, vgmplay_device::A_UPD7759_1 + 1).w(FUNC(vgmplay_state::upd7759_start_w<1>));
 	map(vgmplay_device::A_UPD7759_1 + 2, vgmplay_device::A_UPD7759_1 + 2).w(FUNC(vgmplay_state::upd7759_data_w<1>));
 	map(vgmplay_device::A_UPD7759_1 + 3, vgmplay_device::A_UPD7759_1 + 3).w("vgmplay", FUNC(vgmplay_device::upd7759_bank_w<1>));
 	map(vgmplay_device::A_OKIM6258_0 + 0x0, vgmplay_device::A_OKIM6258_0 + 0x0).w(m_okim6258[0], FUNC(okim6258_device::ctrl_w));
