@@ -14,6 +14,8 @@
 #include "bus/generic/carts.h"
 #include "imagedev/harddriv.h"
 
+#include "screen.h"
+
 /*----------- driver state -----------*/
 
 class n64_rdp;
@@ -31,6 +33,7 @@ public:
 		, m_rsp_imem(*this, "rsp_imem")
 		, m_rsp_dmem(*this, "rsp_dmem")
 		, m_rcp_periphs(*this, "rcp")
+		, m_screen(*this, "screen")
 	{
 	}
 
@@ -39,8 +42,8 @@ public:
 	virtual void video_start() override;
 	void n64_machine_stop();
 
-	uint32_t screen_update_n64(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(screen_vblank_n64);
+	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void screen_vblank(int state);
 
 	// Getters
 	n64_rdp* rdp() { return m_rdp.get(); }
@@ -58,8 +61,12 @@ protected:
 
 	required_device<n64_periphs> m_rcp_periphs;
 
+	required_device<screen_device> m_screen;
+
 	/* video-related */
 	std::unique_ptr<n64_rdp> m_rdp;
+
+	bitmap_rgb32 m_interlace_bitmap[2];
 };
 
 /*----------- devices -----------*/
@@ -129,6 +136,9 @@ public:
 	void si_dma_tick();
 	void reset_tick();
 	void video_update(bitmap_rgb32 &bitmap);
+	void field_update();
+	u8 get_current_field() { return field; }
+	bool is_interlace_mode() { return bool(BIT(vi_control, 6)); }
 
 	// Video Interface (VI) registers
 	uint32_t vi_width = 0;
@@ -312,33 +322,6 @@ private:
 	int32_t m_gamma_table[256]{};
 	int32_t m_gamma_dither_table[0x4000]{};
 
-};
-
-class n64_console_state : public n64_state
-{
-public:
-	n64_console_state(const machine_config &mconfig, device_type type, const char *tag)
-		: n64_state(mconfig, type, tag)
-		{ }
-
-	void n64(machine_config &config);
-	void n64dd(machine_config &config);
-
-protected:
-	void n64_map(address_map &map);
-
-private:
-	uint32_t dd_null_r();
-	void n64dd_map(address_map &map);
-
-	DECLARE_MACHINE_START(n64dd);
-	INTERRUPT_GEN_MEMBER(n64_reset_poll);
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(cart_load);
-	void mempak_format(uint8_t* pak);
-	std::error_condition disk_load(device_image_interface &image);
-	void disk_unload(device_image_interface &image);
-	void rsp_imem_map(address_map &map);
-	void rsp_dmem_map(address_map &map);
 };
 
 // device type definition

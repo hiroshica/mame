@@ -2,6 +2,7 @@
 // copyright-holders:smf
 #include "emu.h"
 #include "atapicdr.h"
+#include "gdrom.h"
 
 #define SCSI_SENSE_ASC_MEDIUM_NOT_PRESENT 0x3a
 #define SCSI_SENSE_ASC_NOT_READY_TO_READY_TRANSITION 0x28
@@ -45,8 +46,13 @@ atapi_fixed_dvdrom_device::atapi_fixed_dvdrom_device(const machine_config &mconf
 
 void atapi_cdrom_device::device_add_mconfig(machine_config &config)
 {
-	CDROM(config, "image").set_interface("cdrom");
-	CDDA(config, "cdda");
+	if(type() == ATAPI_DVDROM || type() == ATAPI_FIXED_DVDROM)
+		DVDROM(config, "image").set_interface("cdrom");
+	else if(type() == ATAPI_GDROM)
+		GDROM(config, "image").set_interface("cdrom");
+	else
+		CDROM(config, "image").set_interface("cdrom");
+	CDDA(config, "cdda").set_cdrom_tag("image");
 }
 
 void atapi_cdrom_device::device_start()
@@ -126,7 +132,7 @@ void atapi_fixed_dvdrom_device::device_reset()
 
 void atapi_cdrom_device::process_buffer()
 {
-	if(	m_sequence_counter != m_image->sequence_counter() )
+	if( m_sequence_counter != m_image->sequence_counter() )
 	{
 		m_media_change = true;
 		m_sequence_counter = m_image->sequence_counter();
