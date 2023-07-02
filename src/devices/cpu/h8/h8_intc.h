@@ -14,8 +14,7 @@
 
 #pragma once
 
-#include "h8.h"
-
+class h8_device;
 
 class h8_intc_device : public device_t {
 public:
@@ -24,7 +23,7 @@ public:
 		h8_intc_device(mconfig, tag, owner)
 	{
 		m_cpu.set_tag(std::forward<T>(cpu));
-	}		
+	}
 
 	int interrupt_taken(int vector);
 	void internal_interrupt(int vector);
@@ -73,7 +72,7 @@ public:
 		gt913_intc_device(mconfig, tag, owner)
 	{
 		m_cpu.set_tag(std::forward<T>(cpu));
-	}		
+	}
 
 	void clear_interrupt(int vector);
 
@@ -88,7 +87,7 @@ public:
 		h8h_intc_device(mconfig, tag, owner)
 	{
 		m_cpu.set_tag(std::forward<T>(cpu));
-	}		
+	}
 
 	uint8_t isr_r();
 	void isr_w(uint8_t data);
@@ -122,7 +121,7 @@ public:
 		h8s_intc_device(mconfig, tag, owner)
 	{
 		m_cpu.set_tag(std::forward<T>(cpu));
-	}		
+	}
 
 	uint8_t ipr_r(offs_t offset);
 	void ipr_w(offs_t offset, uint8_t data);

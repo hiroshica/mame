@@ -6,8 +6,10 @@
 
 #pragma once
 
-#include "screen.h"
 #include "video/pc_vga.h"
+
+#include "screen.h"
+
 
 class nvidia_nv3_vga_device :  public svga_device
 {
@@ -22,12 +24,12 @@ public:
 
 	virtual uint8_t port_03b0_r(offs_t offset) override;
 	virtual void port_03b0_w(offs_t offset, uint8_t data) override;
-//	virtual uint8_t port_03c0_r(offs_t offset) override;
-//	virtual void port_03c0_w(offs_t offset, uint8_t data) override;
+//  virtual uint8_t port_03c0_r(offs_t offset) override;
+//  virtual void port_03c0_w(offs_t offset, uint8_t data) override;
 	virtual uint8_t port_03d0_r(offs_t offset) override;
 	virtual void port_03d0_w(offs_t offset, uint8_t data) override;
-//	virtual uint8_t mem_r(offs_t offset) override;
-//	virtual void mem_w(offs_t offset, uint8_t data) override;
+//  virtual uint8_t mem_r(offs_t offset) override;
+//  virtual void mem_w(offs_t offset, uint8_t data) override;
 
 protected:
 	virtual void device_start() override;

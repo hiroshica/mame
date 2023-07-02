@@ -345,8 +345,7 @@ public:
 		m_coins(*this, "COINS"),
 		m_paletteram(*this, "paletteram"),
 		m_sharedram(*this, "sharedram"),
-		m_subbank(*this, "subbank"),
-		m_sub_ctrl_data(0)
+		m_subbank(*this, "subbank")
 	{ }
 
 	void calibr50(machine_config &config);
@@ -384,10 +383,9 @@ protected:
 
 	required_memory_bank m_subbank;
 
-	u8 m_sub_ctrl_data;
-
-	u8 m_twineagl_xram[8];
-	u8 m_twineagl_tilebank[4];
+	u8 m_sub_ctrl_data = 0;
+	u8 m_twineagl_xram[8] = { };
+	u8 m_twineagl_tilebank[4] = { };
 
 	std::unique_ptr<u8[]> m_downtown_protection;
 
@@ -447,9 +445,7 @@ public:
 		m_upd4701(*this, "upd4701"),
 		m_buttonmux(*this, "buttonmux"),
 		m_track_x(*this, "TRACK%u_X", 1U),
-		m_track_y(*this, "TRACK%u_Y", 1U),
-		m_port_select(0),
-		m_tiles_offset(0)
+		m_track_y(*this, "TRACK%u_Y", 1U)
 	{ }
 
 	void usclssic(machine_config &config);
@@ -478,8 +474,8 @@ private:
 	required_ioport_array<2> m_track_x;
 	required_ioport_array<2> m_track_y;
 
-	u8 m_port_select;
-	u16 m_tiles_offset;
+	u8 m_port_select = 0;
+	u16 m_tiles_offset = 0;
 };
 
 
@@ -592,10 +588,10 @@ u32 downtown_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, c
 		/* the hardware wants different scroll values when flipped */
 
 		/*  bg x scroll      flip
-			metafox     0000 025d = 0, $400-$1a3 = $400 - $190 - $13
-			eightfrc    ffe8 0272
-			            fff0 0260 = -$10, $400-$190 -$10
-			            ffe8 0272 = -$18, $400-$190 -$18 + $1a      */
+		    metafox     0000 025d = 0, $400-$1a3 = $400 - $190 - $13
+		    eightfrc    ffe8 0272
+		                fff0 0260 = -$10, $400-$190 -$10
+		                ffe8 0272 = -$18, $400-$190 -$18 + $1a      */
 
 		m_tiles->update_scroll(vis_dimy, flip);
 
@@ -2108,7 +2104,10 @@ void downtown_state::metafox(machine_config &config)
 
 	/* video hardware */
 	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
-	screen.set_raw(16_MHz_XTAL / 2, 512, 0, 384, 272, 16, 240);
+	screen.set_refresh_hz(60);
+	screen.set_vblank_time(ATTOSECONDS_IN_USEC(0));
+	screen.set_size(64*8, 32*8);
+	screen.set_visarea(0*8, 48*8-1, 2*8, 30*8-1);
 	screen.set_screen_update(FUNC(downtown_state::screen_update));
 	screen.set_palette(m_palette);
 	screen.screen_vblank().set_inputline(m_maincpu, 3, ASSERT_LINE);

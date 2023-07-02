@@ -930,6 +930,18 @@ end
 
 ---------------------------------------------------
 --
+--@src/devices/machine/atahle.h,MACHINES["ATAHLE"] = true
+---------------------------------------------------
+
+if (MACHINES["ATAHLE"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/atahle.cpp",
+		MAME_DIR .. "src/devices/machine/atahle.h",
+	}
+end
+
+---------------------------------------------------
+--
 --@src/devices/machine/ataflash.h,MACHINES["ATAFLASH"] = true
 ---------------------------------------------------
 
@@ -938,6 +950,18 @@ if (MACHINES["ATAFLASH"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/machine/ataflash.cpp",
 		MAME_DIR .. "src/devices/machine/ataflash.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/machine/atastorage.h,MACHINES["ATASTORAGE"] = true
+---------------------------------------------------
+
+if (MACHINES["ATASTORAGE"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/atastorage.cpp",
+		MAME_DIR .. "src/devices/machine/atastorage.h",
 	}
 end
 
@@ -4358,6 +4382,18 @@ if (MACHINES["FDC37C93X"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/machine/fdc37c93x.cpp",
 		MAME_DIR .. "src/devices/machine/fdc37c93x.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/machine/pc87306.h,MACHINES["PC87306"] = true
+---------------------------------------------------
+
+if (MACHINES["PC87306"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/pc87306.cpp",
+		MAME_DIR .. "src/devices/machine/pc87306.h",
 	}
 end
 
