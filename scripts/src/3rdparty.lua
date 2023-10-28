@@ -1550,6 +1550,13 @@ project "portaudio"
 			"/wd4456", -- warning C4456: declaration of 'xxx' hides previous local declaration
 			"/wd4312", -- warning C4312: 'type cast': conversion from 'UINT' to 'HWAVEIN' of greater size
 		}
+	if _OPTIONS["vs"]=="clangcl" then
+		buildoptions {
+			"-Wno-implicit-const-int-float-conversion",
+			"-Wno-sometimes-uninitialized",
+			"-Wno-unused-but-set-variable",
+		}
+	end
 	if _OPTIONS["vs"]=="intel-15" then
 		buildoptions {
 			"/Qwd869",              -- remark #869: parameter "xxx" was never referenced
@@ -1583,7 +1590,8 @@ project "portaudio"
 				"-Wno-incompatible-pointer-types-discards-qualifiers",
 				"-Wno-pointer-sign",
 				"-Wno-switch",
-				"-Wno-macro-redefined"
+				"-Wno-macro-redefined",
+				"-Wno-unused-label",
 			}
 		else
 			buildoptions_c {
@@ -1641,6 +1649,7 @@ project "portaudio"
 		configuration { }
 		files {
 			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_util.c",
+			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_version.c",
 			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_waveformat.c",
 			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_hostapis.c",
 			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_coinitialize.c",
@@ -1669,6 +1678,17 @@ project "portaudio"
 			MAME_DIR .. "3rdparty/portaudio/src/hostapi/alsa/pa_linux_alsa.c",
 			MAME_DIR .. "3rdparty/portaudio/src/hostapi/oss/pa_unix_oss.c",
 		}
+		if _OPTIONS["NO_USE_PULSEAUDIO"]~="1" then
+			defines {
+				"PA_USE_PULSEAUDIO=1",
+			}
+			files {
+				MAME_DIR .. "3rdparty/portaudio/src/hostapi/pulseaudio/pa_linux_pulseaudio_block.c",
+				MAME_DIR .. "3rdparty/portaudio/src/hostapi/pulseaudio/pa_linux_pulseaudio.c",
+				MAME_DIR .. "3rdparty/portaudio/src/hostapi/pulseaudio/pa_linux_pulseaudio_cb.c",
+				MAME_DIR .. "3rdparty/portaudio/src/common/pa_ringbuffer.c",
+			}
+		end
 	end
 	if _OPTIONS["targetos"]=="macosx" then
 		defines {
