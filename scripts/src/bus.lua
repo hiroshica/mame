@@ -564,6 +564,8 @@ if (BUSES["BBC_ANALOGUE"]~=null) then
 		MAME_DIR .. "src/devices/bus/bbc/analogue/joystick.h",
 		MAME_DIR .. "src/devices/bus/bbc/analogue/cfa3000a.cpp",
 		MAME_DIR .. "src/devices/bus/bbc/analogue/cfa3000a.h",
+		MAME_DIR .. "src/devices/bus/bbc/analogue/quinkey.cpp",
+		MAME_DIR .. "src/devices/bus/bbc/analogue/quinkey.h",
 	}
 end
 
@@ -1950,6 +1952,8 @@ if (BUSES["MSX_SLOT"]~=null) then
 		MAME_DIR .. "src/devices/bus/msx/cart/easi_speech.h",
 		MAME_DIR .. "src/devices/bus/msx/cart/fmpac.cpp",
 		MAME_DIR .. "src/devices/bus/msx/cart/fmpac.h",
+		MAME_DIR .. "src/devices/bus/msx/cart/fs_sr021.cpp",
+		MAME_DIR .. "src/devices/bus/msx/cart/fs_sr021.h",
 		MAME_DIR .. "src/devices/bus/msx/cart/fs_sr022.cpp",
 		MAME_DIR .. "src/devices/bus/msx/cart/fs_sr022.h",
 		MAME_DIR .. "src/devices/bus/msx/cart/halnote.cpp",
@@ -4414,6 +4418,24 @@ end
 
 ---------------------------------------------------
 --
+--@src/devices/bus/kim1/kim1bus.h,BUSES["KIM1BUS"] = true
+---------------------------------------------------
+
+if (BUSES["KIM1BUS"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/bus/kim1/cards.cpp",
+		MAME_DIR .. "src/devices/bus/kim1/cards.h",
+		MAME_DIR .. "src/devices/bus/kim1/kim1bus.cpp",
+		MAME_DIR .. "src/devices/bus/kim1/kim1bus.h",
+		MAME_DIR .. "src/devices/bus/kim1/k1008_vismem.cpp",
+		MAME_DIR .. "src/devices/bus/kim1/k1008_vismem.h",
+		MAME_DIR .. "src/devices/bus/kim1/k1016_16k.cpp",
+		MAME_DIR .. "src/devices/bus/kim1/k1016_16k.h",
+	}
+end
+
+---------------------------------------------------
+--
 --@src/devices/bus/amiga/keyboard/keyboard.h,BUSES["AMIGA_KEYBOARD"] = true
 ---------------------------------------------------
 
@@ -5159,6 +5181,8 @@ if (BUSES["MULTIBUS"]~=null) then
 		MAME_DIR .. "src/devices/bus/multibus/labtam_vducom.h",
 		MAME_DIR .. "src/devices/bus/multibus/labtam_z80sbc.cpp",
 		MAME_DIR .. "src/devices/bus/multibus/labtam_z80sbc.h",
+		MAME_DIR .. "src/devices/bus/multibus/robotron_k7070.cpp",
+		MAME_DIR .. "src/devices/bus/multibus/robotron_k7070.h",
 	}
 end
 
@@ -5360,5 +5384,25 @@ if (BUSES["MC68000_SYSBUS"]~=null) then
 		MAME_DIR .. "src/devices/bus/mc68000/floppy.h",
 		MAME_DIR .. "src/devices/bus/mc68000/ram.cpp",
 		MAME_DIR .. "src/devices/bus/mc68000/ram.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/bus/waveblaster/waveblaster.h,BUSES["WAVEBLASTER"] = true
+---------------------------------------------------
+
+if (BUSES["WAVEBLASTER"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/bus/waveblaster/waveblaster.cpp",
+		MAME_DIR .. "src/devices/bus/waveblaster/waveblaster.h",
+		MAME_DIR .. "src/devices/bus/waveblaster/omniwave.cpp",
+		MAME_DIR .. "src/devices/bus/waveblaster/omniwave.h",
+		MAME_DIR .. "src/devices/bus/waveblaster/db50xg.cpp",
+		MAME_DIR .. "src/devices/bus/waveblaster/db50xg.h",
+		MAME_DIR .. "src/devices/bus/waveblaster/db60xg.cpp",
+		MAME_DIR .. "src/devices/bus/waveblaster/db60xg.h",
+		MAME_DIR .. "src/devices/bus/waveblaster/wg130.cpp",
+		MAME_DIR .. "src/devices/bus/waveblaster/wg130.h",
 	}
 end
