@@ -18,6 +18,7 @@ piece from the board, but it doesn't matter.
 Two versions were sold, each should have the same MCU and ROM: a tabletop model
 (Electronic Dames, 8MHz or 12MHz), and a portable model (Compact Dames Computer,
 8MHz). As with SciSys/Saitek chess computers, they were also licensed to Tandy.
+The program engine is DIOS by Eric van Riet Paap.
 
 According to the second hand market, the tabletop French version is much more
 common than the English one. The manual and a LED label incorrectly call crowned
@@ -26,7 +27,7 @@ men queens instead of kings, perhaps due to a translation from French (dame).
 Hardware notes (Compact Dames Computer):
 - PCB label: DH1-PE-009 REV.1
 - Hitachi HD6301Y0P MCU, 8MHz or 12MHz (LC osc, no XTAL)
-- 20+8 LEDs, buttons sensor board, piezo
+- 20+8 LEDs, 5*10 buttons sensor board, piezo
 
 *******************************************************************************/
 
@@ -70,7 +71,7 @@ private:
 	required_device<hd6301y0_cpu_device> m_maincpu;
 	required_device<sensorboard_device> m_board;
 	required_device<pwm_display_device> m_display;
-	required_device<dac_bit_interface> m_dac;
+	required_device<dac_1bit_device> m_dac;
 	required_ioport_array<4> m_inputs;
 
 	u16 m_inp_mux = 0;
@@ -78,7 +79,7 @@ private:
 	u16 m_led_data[2] = { };
 	bool m_enable_reset = false;
 
-	void init_board(int state);
+	void init_board(u8 data);
 
 	// I/O handlers
 	void update_display();
@@ -106,7 +107,7 @@ void edames_state::machine_start()
 	save_item(NAME(m_enable_reset));
 }
 
-void edames_state::init_board(int state)
+void edames_state::init_board(u8 data)
 {
 	for (int i = 0; i < 20; i++)
 	{
@@ -202,7 +203,7 @@ void edames_state::p7_w(u8 data)
 	update_display();
 
 	// P74: speaker out
-	m_dac->write(BIT(data, 4));
+	m_dac->write(BIT(~data, 4));
 }
 
 
@@ -299,4 +300,4 @@ ROM_END
 *******************************************************************************/
 
 //    YEAR  NAME    PARENT    COMPAT  MACHINE  INPUT   CLASS         INIT        COMPANY, FULLNAME, FLAGS
-SYST( 1988, edames, 0,        0,      edames,  edames, edames_state, empty_init, "Saitek", "Electronic Dames", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK )
+SYST( 1988, edames, 0,        0,      edames,  edames, edames_state, empty_init, "Saitek", "Electronic Dames", MACHINE_SUPPORTS_SAVE )

@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!--
 license:CC0-1.0
+authors:Sandro Ronco, hap
 -->
 <mamelayout version="2">
 
@@ -12,7 +13,7 @@ license:CC0-1.0
 		<disk><color red="0.1" green="0.05" blue="0.07" /></disk>
 	</element>
 	<element name="ledr" defstate="0">
-		<disk state="1">    <color red="1" green="0" blue="0" />  </disk>
+		<disk state="1"><color red="1" green="0" blue="0" /></disk>
 	</element>
 
 	<element name="piece" defstate="0">

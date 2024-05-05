@@ -574,7 +574,7 @@ void ctk551_state::ctk601(machine_config& config)
 	m_maincpu->write_sci_tx<0>().set(mdout, FUNC(midi_port_device::write_txd));
 
 	// LCD
-	HD44780(config, m_lcdc, 250'000); // TODO: Wrong device type, should be SED1278F2A (custom mask variant of SED1278F0A?); clock not measured, datasheet typical clock used
+	HD44780(config, m_lcdc, 270'000); // TODO: Wrong device type, should be SED1278F2A (custom mask variant of SED1278F0A?); clock not measured, datasheet typical clock used
 	m_lcdc->set_lcd_size(2, 8);
 
 	auto& screen = SCREEN(config, "screen", SCREEN_TYPE_SVG);
@@ -617,7 +617,7 @@ void ctk551_state::ctk551(machine_config &config)
 	m_maincpu->write_sci_tx<0>().set(mdout, FUNC(midi_port_device::write_txd));
 
 	// LCD
-	HD44780(config, m_lcdc, 250'000); // TODO: Wrong device type, should be SED1278F2A (custom mask variant of SED1278F0A?); clock not measured, datasheet typical clock used
+	HD44780(config, m_lcdc, 270'000); // TODO: Wrong device type, should be SED1278F2A (custom mask variant of SED1278F0A?); clock not measured, datasheet typical clock used
 	m_lcdc->set_lcd_size(2, 8);
 
 	auto &screen = SCREEN(config, "screen", SCREEN_TYPE_SVG);
@@ -1236,8 +1236,8 @@ void ctk551_state::init_gz70sp()
 
 // models with MACHINE_IMPERFECT_SOUND are missing DSP emulation
 //    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT   CLASS         INIT         COMPANY  FULLNAME          FLAGS
-SYST( 1995, ap10,    0,      0,      ap10,    ap10,   ctk551_state, init_ap10,   "Casio", "Celviano AP-10", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK | MACHINE_IMPERFECT_SOUND )
-SYST( 1995, ctk530,  0,      0,      ctk530,  ctk530, ctk551_state, init_ctk530, "Casio", "CTK-530",        MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK )
+SYST( 1995, ap10,    0,      0,      ap10,    ap10,   ctk551_state, init_ap10,   "Casio", "Celviano AP-10", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
+SYST( 1995, ctk530,  0,      0,      ctk530,  ctk530, ctk551_state, init_ctk530, "Casio", "CTK-530",        MACHINE_SUPPORTS_SAVE )
 SYST( 1996, gz70sp,  0,      0,      gz70sp,  gz70sp, ctk551_state, init_gz70sp, "Casio", "GZ-70SP",        MACHINE_SUPPORTS_SAVE )
 SYST( 1997, ctk601,  0,      0,      ctk601,  ctk601, ctk551_state, empty_init,  "Casio", "CTK-601",        MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_SOUND )
 SYST( 2000, ctk551,  0,      0,      ctk551,  ctk551, ctk551_state, empty_init,  "Casio", "CTK-551",        MACHINE_SUPPORTS_SAVE )

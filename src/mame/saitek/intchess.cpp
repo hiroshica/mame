@@ -74,7 +74,7 @@ private:
 	required_device<via6522_device> m_via;
 	required_device<mm74c923_device> m_encoder;
 	required_device<pwm_display_device> m_display;
-	required_device<dac_bit_interface> m_dac;
+	required_device<dac_1bit_device> m_dac;
 	required_shared_ptr<u8> m_vram;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<screen_device> m_screen;
@@ -123,10 +123,10 @@ INPUT_CHANGED_MEMBER(intchess_state::reset_button)
 
 void intchess_state::init_palette(palette_device &palette) const
 {
-	palette.set_pen_color(0, 0xb0, 0xd0, 0xff);
-	palette.set_pen_color(1, 0x00, 0x00, 0x00);
-	palette.set_pen_color(2, 0x88, 0xa8, 0x50);
-	palette.set_pen_color(3, 0xff, 0xff, 0xff);
+	palette.set_pen_color(0, 0xb0, 0xd0, 0xff); // cyan
+	palette.set_pen_color(1, 0x00, 0x00, 0x00); // black
+	palette.set_pen_color(2, 0x88, 0xa8, 0x50); // green
+	palette.set_pen_color(3, 0xff, 0xff, 0xff); // white
 }
 
 u32 intchess_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -253,7 +253,7 @@ static INPUT_PORTS_START( intchess ) // see comments for German version labels
 	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYPAD) PORT_CODE(KEYCODE_D) PORT_CODE(KEYCODE_4) PORT_CODE(KEYCODE_4_PAD) PORT_NAME("D 4 / Rook")
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYPAD) PORT_CODE(KEYCODE_H) PORT_CODE(KEYCODE_8) PORT_CODE(KEYCODE_8_PAD) PORT_NAME("H 8 / Black")
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYPAD) PORT_CODE(KEYCODE_Z) PORT_NAME("Record")    // Speichern
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYPAD) PORT_CODE(KEYCODE_U) PORT_NAME("Place")     // Setzen
+	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYPAD) PORT_CODE(KEYCODE_P) PORT_NAME("Place")     // Setzen
 	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYPAD) PORT_CODE(KEYCODE_S) PORT_NAME("Step")      // Vor
 
 	PORT_START("RESET")
@@ -358,4 +358,4 @@ ROM_END
 *******************************************************************************/
 
 //    YEAR  NAME      PARENT  COMPAT  MACHINE   INPUT     CLASS           INIT        COMPANY, FULLNAME, FLAGS
-SYST( 1980, intchess, 0,      0,      intchess, intchess, intchess_state, empty_init, "SciSys / Intelligent Games", "Intelligent Chess", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK | MACHINE_IMPERFECT_COLORS | MACHINE_IMPERFECT_GRAPHICS )
+SYST( 1980, intchess, 0,      0,      intchess, intchess, intchess_state, empty_init, "SciSys / Intelligent Games", "Intelligent Chess", MACHINE_SUPPORTS_SAVE | MACHINE_IMPERFECT_COLORS | MACHINE_IMPERFECT_GRAPHICS )

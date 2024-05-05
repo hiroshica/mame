@@ -23,7 +23,7 @@ Hardware notes:
 TODO:
 - if/when MAME supports an exit callback, hook up power-off switch to that
 
-BATANB:
+BTANB:
 - slower chessboard button response when a piece moves 1 square vertically between
   the 4th and the 5th ranks, hence the 350ms set_delay
 
@@ -56,9 +56,9 @@ public:
 		m_inputs(*this, "IN.0")
 	{ }
 
-	DECLARE_INPUT_CHANGED_MEMBER(power_off);
-
 	void constjr(machine_config &config);
+
+	DECLARE_INPUT_CHANGED_MEMBER(power_off);
 
 protected:
 	virtual void machine_start() override;
@@ -69,7 +69,7 @@ private:
 	required_device<hd6301v1_cpu_device> m_maincpu;
 	required_device<sensorboard_device> m_board;
 	required_device<pwm_display_device> m_display;
-	required_device<dac_bit_interface> m_dac;
+	required_device<dac_1bit_device> m_dac;
 	required_ioport m_inputs;
 
 	emu_timer *m_standbytimer;
@@ -115,7 +115,7 @@ INPUT_CHANGED_MEMBER(constjr_state::power_off)
 	{
 		// NMI when power goes off, followed by STBY after a short delay
 		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
-		m_standbytimer->adjust(attotime::from_msec(50), M6801_STBY_LINE);
+		m_standbytimer->adjust(attotime::from_msec(10));
 	}
 }
 
@@ -237,4 +237,4 @@ ROM_END
 *******************************************************************************/
 
 //    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    CLASS          INIT        COMPANY, FULLNAME, FLAGS
-SYST( 1985, constjr, 0,      0,      constjr, constjr, constjr_state, empty_init, "Novag", "Constellation Junior", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK )
+SYST( 1985, constjr, 0,      0,      constjr, constjr, constjr_state, empty_init, "Novag Industries", "Constellation Junior", MACHINE_SUPPORTS_SAVE )
