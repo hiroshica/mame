@@ -69,7 +69,7 @@ ESB 6000 board interface (via external port):
 - TC4081, TC4082, TC4017, 74373, 74374
 
 ESB II/6000 chessboard:
-- 64 reed switches (magnet sensors)
+- 128 reed switches (magnet sensors, 2 per square)
 - 64 leds + power led
 
 ESB 3000 hardware is probably same as ESB 6000.
@@ -200,13 +200,13 @@ INPUT_CHANGED_MEMBER(brikett_state::change_cpu_freq)
 	if (newval & 8)
 	{
 		/*
-			3rd hardware model has 2 XTALs, it will increase CPU voltage (and speed)
-			when running on mains power, the 3.579545MHz XTAL is still used for IRQ.
+		    3rd hardware model has 2 XTALs, it will increase CPU voltage (and speed)
+		    when running on mains power, the 3.579545MHz XTAL is still used for IRQ.
 
-			Mephisto III could be fitted with a 12MHz XTAL instead of 6.144MHz and
-			a newer CDP1805CE CPU by Hobby Computer Centrale on request. (It is
-			unexpected that the 1805 accepts such a high overclock, but tests show
-			that it is indeed twice faster)
+		    Mephisto III could be fitted with a 12MHz XTAL instead of 6.144MHz and
+		    a newer CDP1805CE CPU by Hobby Computer Centrale on request. (It is
+		    unexpected that the 1805 accepts such a high overclock, but tests show
+		    that it is indeed twice faster)
 		*/
 		static const XTAL freq[3] = { 3.579545_MHz_XTAL, 6.144_MHz_XTAL, 12_MHz_XTAL };
 		m_maincpu->set_unscaled_clock(freq[(newval & 3) % 3]);
@@ -317,7 +317,7 @@ void brikett_state::esb6_w(u8 data)
 
 int brikett_state::esb6_r()
 {
-	// EF1: read chessboard sensor
+	// EF1: read chessboard square
 	if (m_inputs[5].read_safe(0))
 		return (m_board->read_file(m_esb_select - 2) & ~m_esb_row) ? 0 : 1;
 	else
