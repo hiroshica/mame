@@ -52,10 +52,10 @@ public:
 protected:
 	a2bus_suprterminal_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock);
 
-	virtual void device_start() override;
-	virtual void device_reset() override;
-	virtual void device_add_mconfig(machine_config &config) override;
-	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_start() override ATTR_COLD;
+	virtual void device_reset() override ATTR_COLD;
+	virtual void device_add_mconfig(machine_config &config) override ATTR_COLD;
+	virtual const tiny_rom_entry *device_rom_region() const override ATTR_COLD;
 
 	// overrides of standard a2bus slot functions
 	virtual u8 read_cnxx(u8 offset) override;
@@ -125,6 +125,7 @@ void a2bus_suprterminal_device::device_start()
 	m_vram = std::make_unique<u8[]>(0x800); // 4 2114 DRAMs
 	m_fontram = std::make_unique<u8[]>(0x400); // 2 2114 DRAMs
 
+	m_bC800IsRAM = false;
 	m_bRasterRAM = true;
 	m_bCharBank1 = false;
 

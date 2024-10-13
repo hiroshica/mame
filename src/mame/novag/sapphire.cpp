@@ -82,7 +82,7 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER(power_switch);
 
 protected:
-	virtual void machine_start() override;
+	virtual void machine_start() override ATTR_COLD;
 	virtual void machine_reset() override { set_power(true); }
 
 private:
@@ -104,8 +104,8 @@ private:
 	u32 m_lcd_data = 0;
 	u8 m_lcd_segs2 = 0;
 
-	void sapphire_map(address_map &map);
-	void sapphire2_map(address_map &map);
+	void sapphire_map(address_map &map) ATTR_COLD;
+	void sapphire2_map(address_map &map) ATTR_COLD;
 
 	// I/O handlers
 	void set_power(bool power);
@@ -187,9 +187,8 @@ void sapphire_state::update_lcd()
 		const u8 com = population_count_32(m_lcd_data >> (shift + (i * 2)) & 3);
 		u16 segs = m_lcd_data & ((1 << shift) - 1);
 		segs |= m_lcd_segs2 << shift; // sapphire
-		segs = (com == 0) ? segs : (com == 2) ? ~segs : 0;
 
-		m_lcd_pwm->write_row(i, segs);
+		m_lcd_pwm->write_row(i, (com == 0) ? segs : (com == 2) ? ~segs : 0);
 	}
 }
 
@@ -427,7 +426,7 @@ void sapphire_state::sapphire2(machine_config &config)
     ROM Definitions
 *******************************************************************************/
 
-ROM_START( sapphire ) // ID = SAPPHIRE V1.01
+ROM_START( sapphire ) // ID = SAPPHIRE 1.01
 	ROM_REGION16_BE( 0x8000, "maincpu", 0 )
 	ROM_LOAD("novag_9304-010053_6433258b46f.u1", 0x0000, 0x8000, CRC(bfc39f4b) SHA1(dc96440c070e903772f4485757443dd690e92120) )
 
@@ -438,7 +437,7 @@ ROM_START( sapphire ) // ID = SAPPHIRE V1.01
 	ROM_LOAD("nvip.svg", 0, 36256, CRC(3373e0d5) SHA1(25bfbf0405017388c30f4529106baccb4723bc6b) )
 ROM_END
 
-ROM_START( sapphire2 ) // ID = SAPPHIRE II V1.02
+ROM_START( sapphire2 ) // ID = SAPPHIRE II 1.02
 	ROM_REGION16_BE( 0x8000, "maincpu", 0 )
 	ROM_LOAD("ihp_7600109_hd6433258c67f.u1", 0x0000, 0x8000, CRC(10970123) SHA1(8f72e756915de6569c3936140c775d24730e9065) )
 
@@ -458,6 +457,6 @@ ROM_END
 *******************************************************************************/
 
 //    YEAR  NAME       PARENT  COMPAT  MACHINE    INPUT     CLASS           INIT        COMPANY, FULLNAME, FLAGS
-SYST( 1994, sapphire,  0,      0,      sapphire,  sapphire, sapphire_state, empty_init, "Novag Industries", "Sapphire", MACHINE_SUPPORTS_SAVE )
+SYST( 1994, sapphire,  0,      0,      sapphire,  sapphire, sapphire_state, empty_init, "Novag Industries / Intelligent Heuristic Programming", "Sapphire", MACHINE_SUPPORTS_SAVE )
 
-SYST( 1997, sapphire2, 0,      0,      sapphire2, sapphire, sapphire_state, empty_init, "Novag Industries", "Sapphire II", MACHINE_SUPPORTS_SAVE )
+SYST( 1997, sapphire2, 0,      0,      sapphire2, sapphire, sapphire_state, empty_init, "Novag Industries / Intelligent Heuristic Programming", "Sapphire II", MACHINE_SUPPORTS_SAVE )
