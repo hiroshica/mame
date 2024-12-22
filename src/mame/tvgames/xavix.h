@@ -128,6 +128,8 @@ public:
 
 	void xavix2002(machine_config &config);
 
+	void xavix_43mhz(machine_config &config);
+
 	void init_xavix();
 
 	void ioevent_trg01(int state);
@@ -211,6 +213,8 @@ protected:
 	required_device<screen_device> m_screen;
 	required_device<address_map_bank_device> m_lowbus;
 	address_space* m_cpuspace = nullptr;
+
+	bool m_disable_timer_irq_hack = false; // hack for epo_mini which floods timer IRQs to the point it won't do anything else
 
 private:
 
@@ -421,6 +425,29 @@ private:
 
 	void spriteregs_w(uint8_t data);
 
+	void superxavix_bitmap_pal_index_w(uint8_t data);
+	uint8_t superxavix_bitmap_pal_index_r();
+	void superxavix_chr_pal_index_w(uint8_t data);
+	uint8_t superxavix_chr_pal_index_r();
+	uint8_t superxavix_bitmap_pal_hue_r();
+	uint8_t superxavix_bitmap_pal_saturation_r();
+	uint8_t superxavix_bitmap_pal_lightness_r();
+	uint8_t superxavix_chr_pal_hue_r();
+	uint8_t superxavix_chr_pal_saturation_r();
+	uint8_t superxavix_chr_pal_lightness_r();
+	uint8_t superxavix_pal_hue_r(bool bitmap);
+	uint8_t superxavix_pal_saturation_r(bool bitmap);
+	uint8_t superxavix_pal_lightness_r(bool bitmap);
+	void superxavix_bitmap_pal_hue_w(uint8_t data);
+	void superxavix_bitmap_pal_saturation_w(uint8_t data);
+	void superxavix_bitmap_pal_lightness_w(uint8_t data);
+	void superxavix_chr_pal_hue_w(uint8_t data);
+	void superxavix_chr_pal_saturation_w(uint8_t data);
+	void superxavix_chr_pal_lightness_w(uint8_t data);
+	void superxavix_pal_hue_w(uint8_t data, bool bitmap);
+	void superxavix_pal_saturation_w(uint8_t data, bool bitmap);
+	void superxavix_pal_lightness_w(uint8_t data, bool bitmap);
+
 	uint8_t pal_ntsc_r();
 
 	virtual uint8_t lightgun_r(offs_t offset) { logerror("%s: unhandled lightgun_r %d\n", machine().describe_context(), offset); return 0xff;  }
@@ -512,6 +539,9 @@ private:
 
 	uint8_t m_timer_baseval = 0;
 
+	uint8_t m_superxavix_pal_index = 0;
+	uint8_t m_superxavix_bitmap_pal_index = 0;
+
 	int16_t get_vectors(int which, int half);
 
 	// raster IRQ
@@ -547,6 +577,13 @@ private:
 	required_ioport m_region;
 
 	required_device<gfxdecode_device> m_gfxdecode;
+
+	uint8_t get_pen_lightness_from_dat(uint16_t dat);
+	uint8_t get_pen_saturation_from_dat(uint16_t dat);
+	uint8_t get_pen_hue_from_dat(uint16_t dat);
+	uint16_t apply_pen_lightness_to_dat(uint16_t dat, uint16_t lightness);
+	uint16_t apply_pen_saturation_to_dat(uint16_t dat, uint16_t saturation);
+	uint16_t apply_pen_hue_to_dat(uint16_t dat, uint16_t hue);
 
 	void update_pen(int pen, uint8_t shval, uint8_t lval);
 	void draw_tile_line(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int tile, int bpp, int xpos, int ypos, int drawheight, int drawwidth, int flipx, int flipy, int pal, int zval, int line);
@@ -610,7 +647,6 @@ private:
 	uint8_t guru_anport2_r() { uint8_t ret = m_mouse1x->read()-0x10; return ret; }
 };
 
-
 class xavix_i2c_state : public xavix_state
 {
 public:
@@ -631,6 +667,7 @@ public:
 
 	void xavix2002_i2c_24c08(machine_config &config);
 	void xavix2002_i2c_24c04(machine_config &config);
+	void xavix2002_i2c_24c02(machine_config &config);
 	void xavix2002_i2c_mrangbat(machine_config& config);
 
 protected:
@@ -638,6 +675,37 @@ protected:
 
 	required_device<i2cmem_device> m_i2cmem;
 };
+
+class xavix_i2c_mj_state : public xavix_i2c_state
+{
+public:
+	xavix_i2c_mj_state(const machine_config &mconfig, device_type type, const char *tag)
+		: xavix_i2c_state(mconfig, type, tag)
+		, m_dial(*this, "DIAL")
+	{ }
+
+	void xavix_i2c_24lc02_mj(machine_config &config);
+
+protected:
+	virtual void write_io1(uint8_t data, uint8_t direction) override;
+
+	uint8_t mj_anport0_r() { return m_dial->read()^0x7f; }
+
+	required_ioport m_dial;
+};
+
+class xavix_epo_hamc_state : public xavix_state
+{
+public:
+	xavix_epo_hamc_state(const machine_config &mconfig, device_type type, const char *tag)
+		: xavix_state(mconfig, type, tag)
+	{ }
+
+	int camera_r() { return machine().rand(); }
+
+protected:
+};
+
 
 class xavix_i2c_lotr_state : public xavix_i2c_state
 {
@@ -647,6 +715,8 @@ public:
 	{ }
 
 	int camera_r();
+
+	void init_epo_mini();
 
 protected:
 	//virtual void write_io1(uint8_t data, uint8_t direction) override;
@@ -713,6 +783,25 @@ private:
 	uint8_t tam_anport2_r() { return m_mouse1x->read()^0x7f; }
 	uint8_t tam_anport3_r() { return m_mouse1y->read()^0x7f; }
 };
+
+class xavix_tom_tvho_state : public xavix_state
+{
+public:
+	xavix_tom_tvho_state(const machine_config &mconfig, device_type type, const char *tag)
+		: xavix_state(mconfig, type, tag)
+	{ }
+
+	void xavix_tom_tvho(machine_config &config);
+
+private:
+
+private:
+	uint8_t tvho_anport0_r() { return m_mouse0x->read()^0x7f; }
+	uint8_t tvho_anport1_r() { return m_mouse0y->read()^0x7f; }
+	uint8_t tvho_anport2_r() { return m_mouse1x->read()^0x7f; }
+	uint8_t tvho_anport3_r() { return m_mouse1y->read()^0x7f; }
+};
+
 
 class xavix_mtrk_state : public xavix_state
 {
