@@ -2498,9 +2498,6 @@ rx78                            //
 @source:bandai/sv8000.cpp
 sv8000                          // Super Vision 8000
 
-@source:bandai/tamag1.cpp
-tama                            // Bandai
-
 @source:bandai/wswan.cpp
 pockchv2                        // Benesse Pocket Challenge V2
 wscolor                         // Bandai WonderSwan Color Handheld
@@ -17553,6 +17550,7 @@ hgokbang                        // "116" (c) 1995 Dynax
 hgokou                          // "108" (c) 1995 Dynax (Alba license)
 hgokoua                         // "108" (c) 1995 Dynax (Alba license)
 hkagerou                        // "510" Hana Kagerou 1996 Nakanihon
+hnrose                          // Hana Night Rose (C) 2000 Techno-Top
 hparadis                        // "101" (c) 1994 Nakanihon
 htengoku                        // "65" (c) 1992 Dynax
 janshinp                        // "700j" 1996 Dynax / Sigma
@@ -17572,6 +17570,7 @@ mjmyuniv                        // "85" (c) 1994 Dynax
 mjmywrld                        // "77" (c) 1994 Dynax
 mjreach1                        // "526" Mahjong Reach Ippatsu 1998 Nihon System/Dynax
 mjschuka                        // "115" (c) 1995 Dynax
+mjtenho                         // Mahjong Tenho (C) 2002 Techno-Top
 mmpanic                         // "70" (c) 1992 Nakanihon/Taito
 momotaro                        // "027" 2004 Techno-Top
 nettoqc                         // "103" (c) 1995 Nakanihon
@@ -19147,6 +19146,18 @@ mhockeya                        // Mattel
 msoccer                         // Mattel
 qkracer                         // National Semiconductor
 qkspeller                       // National Semiconductor
+
+@source:handheld/hh_e0c6x.cpp
+alienfev                        // Epoch
+digimon                         // Bandai
+digimonv2                       // Bandai
+digimonv3                       // Bandai
+stackch                         // Tandy Corporation
+tama                            // Bandai
+tamaang                         // Bandai
+tamag2                          // Bandai
+tamamot                         // Bandai
+venusdm                         // Nikko
 
 @source:handheld/hh_hmcs40.cpp
 alnattck                        // Coleco
@@ -29181,9 +29192,16 @@ abigchs                         // Big Cheese
 aclown                          // Clown
 atlantca                        // Atlantica
 atlantcaa                       //
+atrbonpk                        // Bonus Poker
+atrbtlma                        // Beetlemania
+atricmon                        // I C Money
+atricmona                       //
 atronic                         //
 atronica                        //
-baboshka                        // Baboshka
+atronicb                        //
+atrwild                         // Wild Thing
+baboshka                        // Babooshka
+baboshkar                       //
 beachpt                         // Beach Patrol
 bearnec                         // Bear Necessities
 beetleup                        // Beetles Unplugged
@@ -29193,21 +29211,23 @@ castawaya                       //
 cfblue                          // Crazy Fruits Blue
 cfbluea                         //
 cfgreen                         // Crazy Fruits Green
+chicdale                        // Chickendales
 chicken                         // Chicken
 dncsprt                         // Dancing Spirit
 drmmake                         // Dream Maker
+drmmaker                        //
 goldcity                        // Gold City
 goldglen                        // Golden Glenn
+haphippy                        // Happy Happy Hippy
 iccash                          // I C Cash
 jumpjkpt                        // Jumping Jackpots
 mushmagi                        // Mushroom Magic
 santam                          // Santa Maria
-shpinxii                        // Sphinx II
+sphinxii                        // Sphinx II
+sphinxiir                       //
 splmastr                        // Spell Master
 tajmah                          // Tajmahal
-atrwild
-atricmon
-atrbonpk
+tylagoon                        // Typhoon Lagoon
 
 @source:misc/attckufo.cpp
 attckufo                        // (c) 1980 Ryoto Electric Co.
@@ -36892,6 +36912,7 @@ bmf_cn                          //
 bmf_de                          //
 bmf_fr                          //
 bmf_it                          //
+bmf_ita                         //
 bmf_jp                          //
 bmf_nl                          //
 bmf_nl302                       //
@@ -45499,6 +45520,7 @@ snowbro2ny                      // TP-033 (c) 1994 Nyanko
 burgkids                        // (c) 1995 Sunwise
 othldrby                        // (c) 1995 Sunwise
 pwrkick                         // (c) 1994 Sunwise
+pyutakun                        // (c) 1995 Sunwise
 
 @source:toaplan/tekipaki.cpp
 tekipaki                        // TP-020 (c) 1991 Toaplan
@@ -45982,6 +46004,7 @@ rad_digi
 @source:tvgames/spg2xx_dreamlife.cpp
 dreamlif                        //
 dsgnwrld
+gigapets
 
 @source:tvgames/spg2xx_ican.cpp
 icanguit                        //
@@ -45991,6 +46014,7 @@ icanpian                        //
 jak_batm                        // The Batman, 2004
 jak_mk
 jak_mpacw
+jak_potc
 jak_sbjd
 jak_wall
 
