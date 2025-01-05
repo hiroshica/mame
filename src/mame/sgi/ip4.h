@@ -8,7 +8,7 @@
 
 #include "cpu/mips/mips1.h"
 
-#include "machine/ds1315.h"
+#include "machine/ds1215.h"
 #include "machine/mc68681.h"
 #include "machine/pit8253.h"
 #include "machine/wd33c9x.h"
@@ -27,7 +27,6 @@ public:
 protected:
 	virtual tiny_rom_entry const *device_rom_region() const override ATTR_COLD;
 	virtual void device_add_mconfig(machine_config &config) override ATTR_COLD;
-	virtual void device_config_complete() override;
 	virtual ioport_constructor device_input_ports() const override ATTR_COLD;
 	virtual void device_start() override ATTR_COLD;
 	virtual void device_reset() override ATTR_COLD;
@@ -48,9 +47,12 @@ protected:
 
 	void mailbox_w(offs_t offset, u8 data);
 
+	u8 nvram_r(offs_t offset);
+	void nvram_w(offs_t offset, u8 data);
+
 private:
 	required_device<mips1_device_base> m_cpu;
-	required_device<ds1315_device> m_rtc;
+	required_device<ds1215_device> m_rtc;
 	required_device<pit8254_device> m_pit;
 	required_device<wd33c9x_base_device> m_scsi;
 	required_device_array<scn2681_device, 3> m_duart;

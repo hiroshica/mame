@@ -479,6 +479,7 @@ void amiga_state::render_scanline(bitmap_rgb32 &bitmap, int scanline)
 	int next_copper_x;
 	int pl;
 	const int defbitoffs = 15;
+	bool bitplane_dma_enabled = false;
 
 	int save_scanline = scanline;
 
@@ -539,6 +540,7 @@ void amiga_state::render_scanline(bitmap_rgb32 &bitmap, int scanline)
 		CUSTOM_REG(REG_COLOR00) = m_genlock_color;
 
 	/* loop over the line */
+	// TODO: copper runs on odd timeslots
 	next_copper_x = 0;
 	// FIXME: without the add this increment will skip bitplane ops
 	// ddf_stop_pixel_max = 0xd8 * 2 = 432 + 17 + 15 + 1(*) = 465 > width / 2 (455)
@@ -547,27 +549,31 @@ void amiga_state::render_scanline(bitmap_rgb32 &bitmap, int scanline)
 	// - no separation of video and logic models;
 	// - the offsets we are applying to DDFSTRT and DDFSTOP, they mustn't be right (copper timings?);
 	// - ditto for DIW related values, they are offset in far too many places;
+	// - Twintris intro expects +11 on fast scrolling section (glitches at sides)
 	for (int x = 0; x < (amiga_state::SCREEN_WIDTH / 2) + 10; x++)
 	{
 		int sprpix;
 		const bool out_of_beam = x >= amiga_state::SCREEN_WIDTH / 2;
 
 		/* time to execute the copper? */
-		if (x == next_copper_x)
+		if (x == next_copper_x && !out_of_beam)
 		{
 			/* execute the next batch, restoring and re-saving color 0 around it */
 			CUSTOM_REG(REG_COLOR00) = save_color0;
+
+			planes = (CUSTOM_REG(REG_BPLCON0) & (BPLCON0_BPU0 | BPLCON0_BPU1 | BPLCON0_BPU2)) >> 12;
+
 			next_copper_x = m_copper->execute_next(
 				x,
 				m_last_scanline & 0xff,
-				bool(BIT(CUSTOM_REG(REG_DMACON), 14)) // BBUSY
+				bool(BIT(CUSTOM_REG(REG_DMACON), 14)), // BBUSY
+				planes
 			);
 			save_color0 = CUSTOM_REG(REG_COLOR00);
 			if (m_genlock_color != 0xffff)
 				CUSTOM_REG(REG_COLOR00) = m_genlock_color;
 
 			/* compute update-related register values */
-			planes = (CUSTOM_REG(REG_BPLCON0) & (BPLCON0_BPU0 | BPLCON0_BPU1 | BPLCON0_BPU2)) >> 12;
 			hires = CUSTOM_REG(REG_BPLCON0) & BPLCON0_HIRES;
 			ham = CUSTOM_REG(REG_BPLCON0) & BPLCON0_HOMOD;
 			dualpf = CUSTOM_REG(REG_BPLCON0) & BPLCON0_DBLPF;
@@ -637,10 +643,12 @@ void amiga_state::render_scanline(bitmap_rgb32 &bitmap, int scanline)
 		/* need to run the sprite engine every pixel to ensure display */
 		sprpix = get_sprite_pixel(x);
 
+		bitplane_dma_enabled = (CUSTOM_REG(REG_DMACON) & (DMACON_BPLEN | DMACON_DMAEN)) == (DMACON_BPLEN | DMACON_DMAEN);
+
 		/* to render, we must have bitplane DMA enabled, at least 1 plane, and be within the */
 		/* vertical display window */
-		if ((CUSTOM_REG(REG_DMACON) & (DMACON_BPLEN | DMACON_DMAEN)) == (DMACON_BPLEN | DMACON_DMAEN) &&
-			planes > 0 && scanline >= m_diw.top() && scanline < m_diw.bottom())
+		// TODO: bitplane DMA enabled applies to fetch_bitplane_data only
+		if (bitplane_dma_enabled && planes > 0 && scanline >= m_diw.top() && scanline < m_diw.bottom())
 		{
 			int pfpix0 = 0, pfpix1 = 0, collide;
 
@@ -843,7 +851,8 @@ void amiga_state::render_scanline(bitmap_rgb32 &bitmap, int scanline)
 	}
 
 	// end of the line: time to add the modulos
-	if (scanline >= m_diw.top() && scanline < m_diw.bottom())
+	// NOTE: lweapon intro expects modulos to not be applied when bitplane DMA is disabled
+	if (scanline >= m_diw.top() && scanline < m_diw.bottom() && bitplane_dma_enabled)
 	{
 		// update odd planes
 		for (pl = 0; pl < planes; pl += 2)

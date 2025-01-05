@@ -15961,7 +15961,7 @@ gngprot                         // Capcom/Romstar Proto
 gngt                            // 9/1985 (c) 1985
 makaimur                        // 9/1985 (c) 1985
 makaimurb                       // 9/1985 (c) 1985
-makaimurba                      // 9/1985 (c) 1985
+makaimurbbl                     // bootleg
 makaimurc                       // 9/1985 (c) 1985
 makaimurg                       // 9/1985 (c) 1985
 
@@ -16189,10 +16189,10 @@ pb2000c                         // Casio PB-2000C
 jd363                           // Casio Picky Talk - Super Denshi Techou
 jd364                           // Casio Color Picky Talk - Super Denshi Techou
 jd368                           // Casio Super Picky Talk - Access Pet
-mk300                           // Casio Plet's (MK-300)
-mk350                           // Casio Plet's (MK-350)
 pickydis                        // Tsukuda Original Disney Characters - Tegaki Electronic Note
 pickytlk                        // Casio Super Picky Talk - Forest of Gurutan
+plets300                        // Casio Plet's (MK-300)
+plets350                        // Casio Plet's (MK-350)
 
 @source:casio/pv1000.cpp
 pv1000                          // Casio PV-1000
@@ -19147,7 +19147,7 @@ msoccer                         // Mattel
 qkracer                         // National Semiconductor
 qkspeller                       // National Semiconductor
 
-@source:handheld/hh_e0c6x.cpp
+@source:handheld/hh_e0c6200.cpp
 alienfev                        // Epoch
 digimon                         // Bandai
 digimonv2                       // Bandai
@@ -19634,7 +19634,6 @@ h89                             // Heath H89 (WH89)
 h88                             // Heath H88 (with cassette tape)
 h89_cdr                         // Heath H89 with CDR Systems hardware
 h89_mms                         // Heath H89 with Magnolia MicroSystems(MMS) hardware
-h89_sigmasoft                   // H89 with the SigmaSoft IGC card
 z90                             // Zenith Z-90
 
 @source:heathzenith/mdt60.cpp
@@ -20180,6 +20179,7 @@ cmast91                         // (c) 1991 Dyna Electronics
 cmast92                         // (c) 1992 Dyna Electronics
 cmast92a                        // (c) 1992 Dyna Electronics
 cmast97                         // (c) 1996 Dyna Electronics
+cmast97a                        // (c) 1996 Dyna Electronics
 cmast97i                        // (c) 1996 Dyna Electronics
 cmast99                         // (c) 1999 Dyna Electronics
 cmast99b                        // bootleg
@@ -20230,6 +20230,7 @@ fl7_tw                          // Taiwanese Hardware.
 goldfrui                        // bootleg
 goldstar                        // (c) 198? IGS
 goldstbl                        // (c) 198? IGS
+gregular                        // Playmark
 halltsk                         //
 hamhouse                        // bootleg
 hamhouse9                       // bootleg
@@ -20718,10 +20719,11 @@ jbell                           // (c) 1997 IGS
 jinhulu2                        // (c) 1995 IGS
 spk100                          // (c) 1996 IGS
 spk102ua                        // (c) 1996 IGS
-spk114it                        // (c) 199? IGS
-spk115it                        // (c) 199? IGS
-spk116it                        // (c) 199? IGS
-spk116itmx                      // (c) 199? IGS
+spk114it                        // (c) 1996 IGS
+spk115it                        // (c) 1996 IGS
+spk116it                        // (c) 1996 IGS
+spk116itmx                      // (c) 1996 IGS
+spk120in                        // (c) 1996 IGS
 spk200ua                        // (c) 1996 IGS
 spk201ua                        // (c) 1996 IGS
 spk203us                        // (c) 1996 IGS
@@ -24169,7 +24171,8 @@ glregion
 gradius3                        // GX945 (c) 1989 (World)
 gradius3a                       // GX945 (c) 1989 (Asia)
 gradius3j                       // GX945 (c) 1989 (Japan)
-gradius3js                      // GX945 (c) 1989 (Japan, split)
+gradius3ja                      // GX945 (c) 1989 (Japan)
+gradius3jas                     // GX945 (c) 1989 (Japan, split)
 
 @source:konami/gryzor_ms.cpp
 gryzorm                         // bootleg (Modular System)
@@ -29403,6 +29406,7 @@ crzybell                        // (c) 1995 Dyna Electronics
 dynastye                        // (c) 2002 Dyna Electronics
 mystjb                          // (c) 1998 Dyna Electronics
 ndongmul2                       // (c) 1999 Dyna Electronics
+nmondop                         // (c) 1998 Dyna Electronics
 scherrym                        // (c) 1993 Dyna Electronics
 scherrym12                      // (c) 1993 Dyna Electronics
 scherrymp                       // (c) 1997 Dyna Electronics
@@ -30638,6 +30642,7 @@ cots                            // (c) 2005 ECM
 magslot                         // (c) 2003 GMS
 rbmk                            // (c) 1998 GMS
 rbspm                           // (c) 1998 GMS
+sball2k1                        // (c) 2001 GMS
 sc2in1                          // (c) 2001 GMS
 ssanguoj                        // (c) 1998 GMS
 sscs                            // (c) 1999 GMS
@@ -32726,6 +32731,9 @@ sshot                           // (c) 1979 Model Racing
 @source:modelracing/subhuntr.cpp
 subhuntr                        // 1979 Model Racing
 
+@source:moog/memorymoog.cpp
+memorymoog                      // Moog Memorymoog
+
 @source:moog/source.cpp
 moogsource                      // Moog Source
 
@@ -34476,6 +34484,7 @@ vipclub                         // (c) 1988 Daiichi Denshi
 
 @source:nichibutsu/nbmj8891.cpp
 abunai                          // (c) 1989
+avmjts                          // (c) 1990
 bananadr                        // (c) 1989 DIGITAL SOFT
 chinmoku                        // (c) 1990
 club90s                         // (c) 1990
@@ -35441,6 +35450,7 @@ constjr
 diablo68
 diablo68a
 diablo68b
+diablo68c
 scorpio68
 
 @source:novag/diamond.cpp
@@ -35510,6 +35520,9 @@ sbasssta                        //
 
 @source:novation/drumsta.cpp
 drumsta                         //
+
+@source:oberheim/dmx.cpp
+obdmx                           // Oberheim DMX
 
 @source:olivetti/m20.cpp
 m20                             //
@@ -38794,6 +38807,7 @@ croupiera                       // (c) 1997 Playmark
 croupierb                       // (c) 1997 Playmark
 luckboom                        //
 magictch                        //
+magictcha                       //
 sderby                          // (c) 1996
 sderbya                         // (c) 1996
 shinygld                        //
@@ -41775,6 +41789,7 @@ deerhunte                       // (c) 2000 Sammy USA Corporation
 deerhuntj                       // (c) 2000 Sammy USA Corporation
 endrichs                        // (c) 1999 E.N.Tiger
 endrichsa                       // (c) 1999 E.N.Tiger
+endrichsb                       // (c) 1999 E.N.Tiger
 funcube                         // (c) 2000 Namco
 funcube2                        // (c) 2001 Namco
 funcube3                        // (c) 2001 Namco
@@ -45925,12 +45940,14 @@ pi_stry
 pi_stry2
 
 @source:tvgames/spg110.cpp
+conyfght
+conyping                        //
+conyteni                        //
+easports
+jak_bobb
 jak_capb                        //
 jak_spdmo                       //
 jak_spdmoa
-conyteni                        //
-conyping                        //
-conyfght
 sstarkar
 
 @source:tvgames/spg29x.cpp
@@ -46015,7 +46032,10 @@ jak_batm                        // The Batman, 2004
 jak_mk
 jak_mpacw
 jak_potc
+jak_powr
 jak_sbjd
+jak_spd3
+jak_supm
 jak_wall
 
 @source:tvgames/spg2xx_jakks_gkr.cpp
@@ -46285,6 +46305,7 @@ tvpc_ham
 tvpc_tom
 
 @source:tvgames/xavix2.cpp
+ban_db2j
 ltv_naru                        //
 domfitad                        //
 dombikec                        //
@@ -46311,13 +46332,20 @@ ttv_sw                          //
 ttv_swj                         //
 
 @source:tvgames/xavix_2002.cpp
+anpanmdx
+apmj2009
+ban_dn1j
 ban_kksj
+epo_ntpj
 ban_ordj
 domdance                        //
 domfitch                        //
 domfitex                        //
 domstepc                        //
+doradraw
+epo_doka
 epo_tfit
+maxheart
 mrangbat
 suprtvpc
 suprtvpcdo
