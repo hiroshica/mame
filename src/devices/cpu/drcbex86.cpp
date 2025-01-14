@@ -100,6 +100,7 @@ using namespace asmjit;
 using namespace asmjit::x86;
 
 
+namespace {
 
 //**************************************************************************
 //  DEBUGGING
@@ -124,42 +125,21 @@ const uint32_t PTYPE_MRI  = PTYPE_M | PTYPE_R | PTYPE_I;
 const uint32_t PTYPE_MF   = PTYPE_M | PTYPE_F;
 
 
-
-//**************************************************************************
-//  MACROS
-//**************************************************************************
-
-#define X86_CONDITION(condition)        (condition_map[condition - uml::COND_Z])
-#define X86_NOT_CONDITION(condition)    negateCond(condition_map[condition - uml::COND_Z])
-
-#define assert_no_condition(inst)       assert((inst).condition() == uml::COND_ALWAYS)
-#define assert_any_condition(inst)      assert((inst).condition() == uml::COND_ALWAYS || ((inst).condition() >= uml::COND_Z && (inst).condition() < uml::COND_MAX))
-#define assert_no_flags(inst)           assert((inst).flags() == 0)
-#define assert_flags(inst, valid)       assert(((inst).flags() & ~(valid)) == 0)
-
-
-
-//**************************************************************************
-//  GLOBAL VARIABLES
-//**************************************************************************
-
-drcbe_x86::opcode_generate_func drcbe_x86::s_opcode_table[OP_MAX];
-
 // size-to-mask table
-//static const uint64_t size_to_mask[] = { 0, 0xff, 0xffff, 0, 0xffffffff, 0, 0, 0, 0xffffffffffffffffU };
+//const uint64_t size_to_mask[] = { 0, 0xff, 0xffff, 0, 0xffffffff, 0, 0, 0, 0xffffffffffffffffU };
 
 // register mapping tables
-static const Gp::Id int_register_map[REG_I_COUNT] =
+const Gp::Id int_register_map[REG_I_COUNT] =
 {
 	Gp::kIdBx, Gp::kIdSi, Gp::kIdDi, Gp::kIdBp
 };
 
 // flags mapping tables
-static uint8_t flags_map[0x1000];
-static uint32_t flags_unmap[0x20];
+uint8_t flags_map[0x1000];
+uint32_t flags_unmap[0x20];
 
 // condition mapping table
-static const CondCode condition_map[uml::COND_MAX - uml::COND_Z] =
+const CondCode condition_map[uml::COND_MAX - uml::COND_Z] =
 {
 	CondCode::kZ,    // COND_Z = 0x80,    requires Z
 	CondCode::kNZ,   // COND_NZ,          requires Z
@@ -180,13 +160,48 @@ static const CondCode condition_map[uml::COND_MAX - uml::COND_Z] =
 };
 
 // FPU control register mapping
-static const uint16_t fp_control[4] =
+const uint16_t fp_control[4] =
 {
 	0x0e3f,     // ROUND_TRUNC
 	0x023f,     // ROUND_ROUND
 	0x0a3f,     // ROUND_CEIL
 	0x063f      // ROUND_FLOOR
 };
+
+
+
+//**************************************************************************
+//  MACROS
+//**************************************************************************
+
+#define X86_CONDITION(condition)        (condition_map[condition - uml::COND_Z])
+#define X86_NOT_CONDITION(condition)    negateCond(condition_map[condition - uml::COND_Z])
+
+#define assert_no_condition(inst)       assert((inst).condition() == uml::COND_ALWAYS)
+#define assert_any_condition(inst)      assert((inst).condition() == uml::COND_ALWAYS || ((inst).condition() >= uml::COND_Z && (inst).condition() < uml::COND_MAX))
+#define assert_no_flags(inst)           assert((inst).flags() == 0)
+#define assert_flags(inst, valid)       assert(((inst).flags() & ~(valid)) == 0)
+
+
+
+class ThrowableErrorHandler : public ErrorHandler
+{
+public:
+	void handleError(Error err, const char *message, BaseEmitter *origin) override
+	{
+		throw emu_fatalerror("asmjit error %d: %s", err, message);
+	}
+};
+
+} // anonymous namespace
+
+
+
+//**************************************************************************
+//  GLOBAL VARIABLES
+//**************************************************************************
+
+drcbe_x86::opcode_generate_func drcbe_x86::s_opcode_table[OP_MAX];
 
 
 
@@ -287,15 +302,6 @@ const drcbe_x86::opcode_table_entry drcbe_x86::s_opcode_table_source[] =
 	{ uml::OP_FRSQRT,  &drcbe_x86::op_frsqrt },     // FRSQRT  dst,src1
 	{ uml::OP_FCOPYI,  &drcbe_x86::op_fcopyi },     // FCOPYI  dst,src
 	{ uml::OP_ICOPYF,  &drcbe_x86::op_icopyf },     // ICOPYF  dst,src
-};
-
-class ThrowableErrorHandler : public ErrorHandler
-{
-public:
-	void handleError(Error err, const char *message, BaseEmitter *origin) override
-	{
-		throw emu_fatalerror("asmjit error %d: %s", err, message);
-	}
 };
 
 
@@ -840,8 +846,21 @@ void drcbe_x86::generate(drcuml_block &block, const instruction *instlist, uint3
 	m_hash.block_begin(block, instlist, numinst);
 	m_map.block_begin(block);
 
-	// compute the base by aligning the cache top to a cache line (assumed to be 64 bytes)
-	x86code *dst = (x86code *)(uint64_t(m_cache.top() + 63) & ~63);
+	// compute the base by aligning the cache top to a cache line
+	auto [err, linesize] = osd_get_cache_line_size();
+	uintptr_t linemask = 63;
+	if (err)
+	{
+		osd_printf_verbose("Error getting cache line size (%s:%d %s), assuming 64 bytes\n", err.category().name(), err.value(), err.message());
+	}
+	else
+	{
+		assert(linesize);
+		linemask = linesize - 1;
+		for (unsigned shift = 1; linemask & (linemask + 1); ++shift)
+			linemask |= linemask >> shift;
+	}
+	x86code *dst = (x86code *)(uintptr_t(m_cache.top() + linemask) & ~linemask);
 
 	CodeHolder ch;
 	ch.init(Environment::host(), uint64_t(dst));
@@ -2583,9 +2602,12 @@ void drcbe_x86::op_exh(Assembler &a, const instruction &inst)
 	drccodeptr *targetptr = handp.handle().codeptr_addr();
 
 	// perform the exception processing
-	Label no_exception = a.newLabel();
+	Label no_exception;
 	if (inst.condition() != uml::COND_ALWAYS)
+	{
+		no_exception = a.newLabel();
 		a.short_().j(X86_NOT_CONDITION(inst.condition()), no_exception);                // jcc   no_exception
+	}
 	emit_mov_m32_p32(a, MABS(&m_state.exp, 4), exp);                                    // mov   [exp],exp
 	if (*targetptr != nullptr)
 		a.call(imm(*targetptr));                                                        // call  *targetptr
@@ -2615,9 +2637,12 @@ void drcbe_x86::op_callh(Assembler &a, const instruction &inst)
 	drccodeptr *targetptr = handp.handle().codeptr_addr();
 
 	// skip if conditional
-	Label skip = a.newLabel();
+	Label skip;
 	if (inst.condition() != uml::COND_ALWAYS)
+	{
+		skip = a.newLabel();
 		a.short_().j(X86_NOT_CONDITION(inst.condition()), skip);                        // jcc   skip
+	}
 
 	// jump through the handle; directly if a normal jump
 	if (*targetptr != nullptr)
@@ -2647,9 +2672,12 @@ void drcbe_x86::op_ret(Assembler &a, const instruction &inst)
 	assert(inst.numparams() == 0);
 
 	// skip if conditional
-	Label skip = a.newLabel();
+	Label skip;
 	if (inst.condition() != uml::COND_ALWAYS)
+	{
+		skip = a.newLabel();
 		a.j(X86_NOT_CONDITION(inst.condition()), skip);                                 // jcc   skip
+	}
 
 	// return
 	a.lea(esp, ptr(esp, 28));                                                           // lea   rsp,[rsp+28]
@@ -2681,9 +2709,12 @@ void drcbe_x86::op_callc(Assembler &a, const instruction &inst)
 	be_parameter paramp(*this, inst.param(1), PTYPE_M);
 
 	// skip if conditional
-	Label skip = a.newLabel();
+	Label skip;
 	if (inst.condition() != uml::COND_ALWAYS)
+	{
+		skip = a.newLabel();
 		a.j(X86_NOT_CONDITION(inst.condition()), skip);                                 // jcc   skip
+	}
 
 	// perform the call
 	a.mov(dword_ptr(esp, 0), imm(paramp.memory()));                                     // mov   [esp],paramp
@@ -3704,9 +3735,12 @@ void drcbe_x86::op_mov(Assembler &a, const instruction &inst)
 	Gp const dstreg = dstp.select_register(eax);
 
 	// add a conditional branch unless a conditional move is possible
-	Label skip = a.newLabel();
+	Label skip;
 	if (inst.condition() != uml::COND_ALWAYS && ((inst.size() == 8) || !(dstp.is_int_register() && !srcp.is_immediate())))
+	{
+		skip = a.newLabel();
 		a.short_().j(X86_NOT_CONDITION(inst.condition()), skip);                        // jcc   skip
+	}
 
 	// 32-bit form
 	if (inst.size() == 4)
@@ -5990,9 +6024,12 @@ void drcbe_x86::op_fmov(Assembler &a, const instruction &inst)
 	be_parameter srcp(*this, inst.param(1), PTYPE_MF);
 
 	// always start with a jmp
-	Label skip = a.newLabel();
+	Label skip;
 	if (inst.condition() != uml::COND_ALWAYS)
+	{
+		skip = a.newLabel();
 		a.j(X86_NOT_CONDITION(inst.condition()), skip);                                 // jcc   skip
+	}
 
 	// general case
 	a.mov(eax, MABS(srcp.memory(0)));                                                   // mov   eax,[srcp]

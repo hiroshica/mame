@@ -1689,9 +1689,9 @@ ATK test: C:0 H:U Bad
 		<year>1991</year>
 		<publisher>Team 17</publisher>
 		<notes><![CDATA[
-Throws "amiga_fdc_device::live_run - cur_live.bit_counter > 8" after credits display
+Throws "amiga_fdc_device::live_run - cur_live.bit_counter > 8" after credits display (worked around)
 Motor keeps spinning badly on disk swap screen(s) (verify)
-No player sprite, red dots incorrectly drawn on several elements during gameplay (namely alien enemies)
+Glitchy [Copper] on bottom part of screen, may use SKIP
 ATK test: OK
 ]]></notes>
 		<part name="flop1" interface="floppy_3_5">
@@ -2726,7 +2726,7 @@ ATK test: failed
 		<publisher>Virgin</publisher>
 		<notes><![CDATA[
 Guru Meditation 00000004.00001970 at bootup
-[Copper] cuts bottom part of screen badly during gameplay
+[Copper] cuts bottom part of screen badly during gameplay, uses SKIP
 ATK test: OK
 ]]></notes>
 		<part name="flop1" interface="floppy_3_5">
@@ -6395,6 +6395,7 @@ ATK test: C:1 Bad
 		<year>1992</year>
 		<publisher>Psygnosis</publisher>
 		<notes><![CDATA[
+Title screen is unresponsive, keeps prompting for "Press Left Mouse Button", [FDC] with adkcon=$3100 (heavy activity)
 ATK test: failed
 ]]></notes>
 		<part name="flop1" interface="floppy_3_5">
@@ -7829,7 +7830,7 @@ Fatal errors in ipf_decode::generate_timings type 4
 new68k: white screen
 Title screen background glitches out [Copper]
 Map screen mosaic effect is off [Copper]
-Gameplay has no [Denise] sprites [Copper]
+Gameplay missing [Denise] lives counter, missing background [Copper]
 https://codetapper.com/amiga/sprite-tricks/brian-the-lion/
 ATK test: OK
 ]]></notes>
@@ -16431,6 +16432,8 @@ ATK test: C:0 H:U 1 Sector Bad
 		<year>1990</year>
 		<publisher>Rainbow Arts</publisher>
 		<notes><![CDATA[
+Requires audiotape playback to go along with intro (otherwise silent)
+TODO: is this a Multi 5 release, where every region got its own language audio?
 ATK test: OK
 ]]></notes>
 		<part name="flop1" interface="floppy_3_5">
@@ -43752,9 +43755,10 @@ ATK test: OK
 		<publisher>Psygnosis</publisher>
 		<notes><![CDATA[
 Red screen, [FDC] dsksync (fixed)
-Title screen shows with foreground garbage, [Copper] sprites
+Title screen shows with foreground garbage, bad [FDC] data?
 https://codetapper.com/amiga/sprite-tricks/shadow-of-the-beast/
-Hangs during first intro in gameplay, verify [DSKDAT R] access
+Hangs during first intro in gameplay
+Split up [Denise] bitplanes on a top row, [Copper]?
 ATK test: failed
 ]]></notes>
 		<part name="flop1" interface="floppy_3_5">
@@ -49335,8 +49339,9 @@ ATK test: OK
 		<year>1993</year>
 		<publisher>Team 17</publisher>
 		<notes><![CDATA[
-Red screen [FDC] dsksync
-Has serious GFX pitch issues on gameplay, no sprites with a500p (update: regressed with a500 too, [Copper]?)
+Red screen [FDC] dsksync (fixed?)
+Main sprite randomly don't show up, [Copper]?
+[Copper] cuts bottom part of screen badly during gameplay, may use SKIP
 ATK test: failed
 ]]></notes>
 		<part name="flop1" interface="floppy_3_5">
