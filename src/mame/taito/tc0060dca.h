@@ -10,14 +10,15 @@ class tc0060dca_device : public device_t, public device_sound_interface
 public:
 	tc0060dca_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0);
 
-	void level_w(offs_t offset, u8 data);
+	void volume1_w(u8 data);
+	void volume2_w(u8 data);
 
 protected:
 	// device_t override
 	virtual void device_start() override ATTR_COLD;
 
 	// device_sound_interface override
-	virtual void sound_stream_update(sound_stream &stream, std::vector<read_stream_view> const &inputs, std::vector<write_stream_view> &outputs) override;
+	virtual void sound_stream_update(sound_stream &stream) override;
 
 private:
 	sound_stream *m_stream;

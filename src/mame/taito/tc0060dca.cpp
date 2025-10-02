@@ -21,15 +21,16 @@ tc0060dca_device::tc0060dca_device(const machine_config &mconfig, const char *ta
 {
 }
 
-void tc0060dca_device::level_w(offs_t offset, u8 data)
+void tc0060dca_device::volume1_w(u8 data)
 {
 	m_stream->update();
+	m_gain[0] = m_atten_table[data];
+}
 
-	for (int i = 0; i < 2; i++)
-	{
-		if (BIT(offset, i))
-			m_gain[i] = m_atten_table[data];
-	}
+void tc0060dca_device::volume2_w(u8 data)
+{
+	m_stream->update();
+	m_gain[1] = m_atten_table[data];
 }
 
 void tc0060dca_device::device_start()
@@ -43,13 +44,11 @@ void tc0060dca_device::device_start()
 	save_item(NAME(m_gain));
 }
 
-void tc0060dca_device::sound_stream_update(sound_stream &stream, std::vector<read_stream_view> const &inputs, std::vector<write_stream_view> &outputs)
+void tc0060dca_device::sound_stream_update(sound_stream &stream)
 {
-	for (int i = 0; i < outputs[0].samples(); i++)
+	for (int i = 0; i < stream.samples(); i++)
 	{
-		const stream_buffer::sample_t l = inputs[0].get(i);
-		const stream_buffer::sample_t r = inputs[1].get(i);
-		outputs[0].put(i, l * m_gain[0]);
-		outputs[1].put(i, r * m_gain[1]);
+		stream.put(0, i, stream.get(0, i) * m_gain[0]);
+		stream.put(1, i, stream.get(1, i) * m_gain[1]);
 	}
 }
