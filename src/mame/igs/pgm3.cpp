@@ -44,34 +44,75 @@
 #include "emupal.h"
 #include "screen.h"
 
+#include "util/aes256cbc.h"
+#include "util/endianness.h"
+
 
 namespace {
 
 class pgm3_state : public driver_device
 {
 public:
-	pgm3_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+	pgm3_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_mainram(*this, "mainram")
+	{ }
 
-	void pgm3(machine_config &config);
+	void pgm3(machine_config &config) ATTR_COLD;
 
-	void init_kov3hd();
+	void init_kov3hd() ATTR_COLD;
 
 private:
-
 	virtual void machine_start() override ATTR_COLD;
 	virtual void machine_reset() override ATTR_COLD;
 	virtual void video_start() override ATTR_COLD;
+
 	uint32_t screen_update_pgm3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_vblank_pgm3(int state);
-	required_device<cpu_device> m_maincpu;
+	void decryptaes(const uint8_t *key, const uint8_t *iv, int source, int dest, int length);
+
 	void pgm3_map(address_map &map) ATTR_COLD;
+
+	required_device<cpu_device> m_maincpu;
+	required_shared_ptr<u32> m_mainram;
 };
+
+void pgm3_state::decryptaes(const uint8_t *key, const uint8_t *iv, int source, int dest, int length)
+{
+	using namespace aes256cbc;
+
+	address_space &mem = m_maincpu->space(AS_PROGRAM);
+	AES_CTX ctx;
+	uint8_t inbuffer[16];
+	uint8_t outbufer[16];
+
+	AES_DecryptInit(&ctx, key, iv);
+
+	for (int i = 0; i < length; i += 16)
+	{
+		for (int j = 0; j < 16; j++)
+		{
+			inbuffer[j] = mem.read_byte(source + i + j);
+		}
+
+		AES_Decrypt(&ctx, inbuffer, outbufer);
+
+		for (int j = 0; j < 16; j++)
+		{
+			mem.write_byte(dest + i + j, outbufer[j]);
+		}
+	}
+
+	AES_CTX_Free(&ctx);
+}
 
 void pgm3_state::pgm3_map(address_map &map)
 {
-	map(0x00000000, 0x00007fff).rom().region("internal_mask", 0x00000);
+	map(0x00000000, 0x0007ffff).ram().share("mainram");
+	//map(0x00000000, 0x00007fff).rom().region("internal_mask", 0); // for full boot process the internal mask area would initially appear at 0
+
+	map(0x10000000, 0x1007ffff).rom().region("internal_flash", 0);
 	map(0x28000000, 0x2801ffff).ram();
 }
 
@@ -97,6 +138,21 @@ void pgm3_state::machine_start()
 
 void pgm3_state::machine_reset()
 {
+	// perform a bootstrap to bypass the level 0 internal_mask as it might not be properly dumped
+	auto bootrom = util::little_endian_cast<uint8_t>(&memregion("internal_mask")->as_u32());
+	uint8_t rom_aes_key[32];
+	uint8_t rom_aes_iv[16];
+
+	for (int i = 0; i < 32; i++)
+		rom_aes_key[i] = bootrom[0x42b8 + i];
+
+	for (int i = 0; i < 16; i++)
+		rom_aes_iv[i] = bootrom[0x44a8 + i];
+
+	// the first 0x20000 bytes are encrypted with this key, it then uses other keys to decrypt the rest
+	// the decryption is done in hardware, not software
+	decryptaes(rom_aes_key, rom_aes_iv, 0x10000000, 0x00000000, 0x20000);
+
 	// if we want to boot from somewhere else, change this
 	//m_maincpu->set_state_int(arm7_cpu_device::ARM7_R15, 0x04000000);
 }
@@ -104,7 +160,7 @@ void pgm3_state::machine_reset()
 void pgm3_state::pgm3(machine_config &config)
 {
 	/* basic machine hardware */
-	ARM9(config, m_maincpu, 800000000); // wrong, see notes at top of driver
+	ARM1176JZF_S(config, m_maincpu, 800000000); // SOC38 / IGS038 - ARM1176JZ based SoC
 	m_maincpu->set_addrmap(AS_PROGRAM, &pgm3_state::pgm3_map);
 
 	/* video hardware */
@@ -125,7 +181,8 @@ void pgm3_state::pgm3(machine_config &config)
 	/* Same ROM is likely used by other games as it contains a number of unused keys, with the key to use being selected by a HW register */ \
 	/* kov3hd uses the AES keys at 0x42b8 and 0x44a8 in this ROM */ \
 	/* the only purpose of this bootloader is to decrypt the flash part of the internal ROM below, copying it into RAM */ \
-	/* (ROM was reconstructed from several decap attempts, hence BAD_DUMP as there could be errors) */ \
+	/* (ROM was reconstructed from several decap attempts, hence BAD_DUMP as there could be errors, furthermore it was dumped from a chip */ \
+	/*  marked 'production sample' so could be different from final) */ \
 	ROM_REGION32_LE( 0x8000, "internal_mask", ROMREGION_ERASE00 ) \
 	ROM_LOAD( "internal_boot.bin", 0x0000, 0x8000, BAD_DUMP CRC(f6877f92) SHA1(4431d73cc7e5bbb11cd53449284fff1435a6ea32) ) \
 	/* internal flash is for KOV3HD, and gets decrypted using hardware AES decryption and a key from internal_mask */ \
