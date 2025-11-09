@@ -395,10 +395,17 @@ public:
 protected:
 	TIMER_CALLBACK_MEMBER(fdc_trigger);
 
+	u8 ram_ext_r(offs_t offset) { return m_ram->read_no_mirror(offset + 0x100000); }
+	void ram_ext_w(offs_t offset, u8 data) { return m_ram->write_no_mirror(offset + 0x100000, data); }
+
+	void pc9801vm_map(address_map &map) ATTR_COLD;
+	void pc9801vm_io(address_map &map) ATTR_COLD;
+
 	void pc9801rs_io(address_map &map) ATTR_COLD;
 	void pc9801rs_map(address_map &map) ATTR_COLD;
-	void pc9801ux_io(address_map &map) ATTR_COLD;
 	void pc9801ux_map(address_map &map) ATTR_COLD;
+	void pc9801vx_map(address_map &map) ATTR_COLD;
+	void pc9801dx_map(address_map &map) ATTR_COLD;
 
 	uint16_t grcg_gvram_r(offs_t offset, uint16_t mem_mask = ~0);
 	void grcg_gvram_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
@@ -460,8 +467,6 @@ private:
 	optional_device_array<ata_interface_device, 2> m_ide;
 //  optional_device<dac_1bit_device> m_dac1bit;
 	required_device<speaker_sound_device> m_dac1bit;
-
-	uint8_t midi_r();
 
 	// 286-based machines except for PC98XA
 	u8 dma_access_ctrl_r(offs_t offset);
@@ -564,6 +569,7 @@ class pc9801bx_state : public pc9801us_state
 public:
 	pc9801bx_state(const machine_config &mconfig, device_type type, const char *tag)
 		: pc9801us_state(mconfig, type, tag)
+		, m_hole_15M_view(*this, "hole_15M_view")
 	{
 	}
 
@@ -576,6 +582,17 @@ protected:
 	DECLARE_MACHINE_START(pc9801bx2);
 	DECLARE_MACHINE_RESET(pc9801bx2);
 
+	u8 ram_ext_15m_r(offs_t offset) { return m_ram->read_no_mirror(offset + 0xf00000); }
+	void ram_ext_15m_w(offs_t offset, u8 data) { return m_ram->write_no_mirror(offset + 0xf00000, data); }
+	u8 ram_ext_16m_r(offs_t offset) { return m_ram->read_no_mirror(offset + 0x1000000); }
+	void ram_ext_16m_w(offs_t offset, u8 data) { return m_ram->write_no_mirror(offset + 0x1000000, data); }
+
+	virtual void hole_15m_control_w(offs_t offset, u8 data);
+	u8 hole_15m_control_r(offs_t offset);
+
+	u8 m_hole_15m;
+
+	memory_view m_hole_15M_view;
 private:
 	u8 i486_cpu_mode_r(offs_t offset);
 	u8 gdc_31kHz_r(offs_t offset);

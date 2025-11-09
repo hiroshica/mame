@@ -18167,6 +18167,7 @@ dream9
 @source:excellent/es9501.cpp
 d9flower
 d9flowera
+multspin
 specd9
 specd9105g
 starball
@@ -20609,6 +20610,8 @@ cbaai
 cbonus
 cherry96
 cherry96a
+cherry98
+cherry98a
 chry10
 chryangl
 chryangla
@@ -20831,6 +20834,7 @@ skdelux99
 skill98
 skillch
 skillcha
+skillchb
 skillmst
 skillmsta
 srmagic
@@ -28933,9 +28937,11 @@ milton
 raaspec
 vectrex
 
-@source:mips/mips.cpp
+@source:mips/mips_i2000.cpp
 rc2030
 rs2030
+
+@source:mips/mips_r3030.cpp
 rc3230
 rs3230
 
@@ -30055,6 +30061,8 @@ scherrym12
 scherrymp
 scherrymp10u
 tripjack
+tripjack07
+tripjack11
 
 @source:misc/chameleonrx1.cpp
 chamrx1
@@ -33123,6 +33131,7 @@ trvhanga
 spdamjes
 
 @source:misc/spool99.cpp
+scardy2k
 spool99
 spool99a
 spool99b
@@ -33460,6 +33469,9 @@ wmsb
 wmsboom
 wmstopb
 yukongld
+
+@source:misc/wren.cpp
+wren
 
 @source:misc/xtom3d.cpp
 pumpipx2
@@ -35837,6 +35849,7 @@ lxcmcyspn
 lxcmcysw
 lxcyber
 lxcypkdp
+lxcypkfz
 lxcypkpp
 lxcypksp
 matet10
@@ -37412,6 +37425,7 @@ shutms11
 zidav630e
 
 @source:pc/tandy1t.cpp
+t1000
 t1000hx
 t1000rl
 t1000sl2
@@ -43372,6 +43386,7 @@ attache
 attache816
 
 @source:skeleton/aws.cpp
+aws200
 aws220
 
 @source:skeleton/ax20.cpp
@@ -47138,6 +47153,7 @@ wrlshunt
 
 @source:tvgames/generalplus_gpl16250_spi.cpp
 anpanbd
+anpaneng
 anpanm15
 bk139in1
 bkrankp
@@ -47160,6 +47176,7 @@ bftetris
 bubltea
 dsgnpal
 pokebala
+pokeissh
 pokgoget
 punifrnd
 punij1m
@@ -47191,6 +47208,7 @@ anpanm19
 arcadege
 ardancem
 bananlap
+banaquap
 bandolap
 bandplap
 bandslap
@@ -47212,6 +47230,7 @@ pocketmr
 pokepeac
 rotom2
 saikyopc
+segcarsh
 segdis16
 smatomo
 spicanot
@@ -47243,6 +47262,7 @@ rs70_648
 @source:tvgames/myaatari.cpp
 kuniotv
 myaatari
+pachdmi
 
 @source:tvgames/pubint_storyreader.cpp
 pi_stry
@@ -47451,6 +47471,7 @@ tvtchsb
 
 @source:tvgames/spg2xx_lexibook.cpp
 arcade3d
+cybrtvbb
 cybrtvfe
 lexizeus
 lexiseal
