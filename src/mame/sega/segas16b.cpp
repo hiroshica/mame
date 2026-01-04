@@ -10389,7 +10389,6 @@ GAME( 1987, sdibl5,     sdi,      system16b_split,       sdi,      segas16b_stat
 GAME( 1987, sdibl6,     sdi,      system16b_split,       sdi,      segas16b_state, init_sdi_5358_small,     ROT0,   "bootleg", "SDI - Strategic Defense Initiative (bootleg, set 5)", 0 )
 
 // bootlegs with modified hardware
-<<<<<<< HEAD
 GAME( 1989, fpointbl,    fpoint,  fpointbl,              fpointbl, segas16b_state, init_generic_bootleg,    ROT0,   "bootleg (Datsu)", "Flash Point (World, bootleg)", 0 )
 GAME( 1989, fpointbj,    fpoint,  fpointbl,              fpointbl, segas16b_state, init_generic_bootleg,    ROT0,   "bootleg (Datsu)", "Flash Point (Japan, bootleg set 1)", 0 )
 GAME( 1989, fpointbla,   fpoint,  fpointbla,             fpointbl, segas16b_state, init_fpointbla,          ROT0,   "bootleg",         "Flash Point (Japan, bootleg set 2)", MACHINE_NOT_WORKING )
@@ -10458,7 +10457,4 @@ ROM_START( charon )
 	ROM_LOAD( "s1.a12", 0x30000, 0x20000, CRC(e033bccf) SHA1(29529c2eb1a1c667940bb4afe78dfb921a65380b) )
 ROM_END
 
-GAME( 1989, fpointbl,   fpoint,   fpointbl,              fpointbl, segas16b_state, init_generic_bootleg,    ROT0,   "bootleg (Datsu)", "Flash Point (World, bootleg)", 0 )
-GAME( 1989, fpointbj,   fpoint,   fpointbl,              fpointbl, segas16b_state, init_generic_bootleg,    ROT0,   "bootleg (Datsu)", "Flash Point (Japan, bootleg set 1)", 0 )
-GAME( 1989, fpointbla,  fpoint,   fpointbla,             fpointbl, segas16b_state, init_fpointbla,          ROT0,   "bootleg",         "Flash Point (Japan, bootleg set 2)", MACHINE_NOT_WORKING )
 GAME( 1989, charon, 0, system16b,           charon, segas16b_state, init_generic_5704,       ROT90,   "bootleg", "Charon (develop version.)", 0 )
