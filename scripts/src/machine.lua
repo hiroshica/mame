@@ -2937,6 +2937,18 @@ end
 
 ---------------------------------------------------
 --
+--@src/devices/machine/pcfx_intc.h,MACHINES["PCFX_INTC"] = true
+---------------------------------------------------
+
+if (MACHINES["PCFX_INTC"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/pcfx_intc.cpp",
+		MAME_DIR .. "src/devices/machine/pcfx_intc.h",
+	}
+end
+
+---------------------------------------------------
+--
 --@src/devices/machine/pckeybrd.h,MACHINES["PCKEYBRD"] = true
 ---------------------------------------------------
 
@@ -5465,5 +5477,16 @@ if (MACHINES["SCI4"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/machine/sci4.cpp",
 		MAME_DIR .. "src/devices/machine/sci4.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/machine/sun1_mmu.h,MACHINES["SUN1_MMU"] = true
+---------------------------------------------------
+if (MACHINES["SUN1_MMU"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/sun1_mmu.cpp",
+		MAME_DIR .. "src/devices/machine/sun1_mmu.h",
 	}
 end
