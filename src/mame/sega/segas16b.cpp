@@ -10460,4 +10460,9 @@ ROM_START( charon )
 	ROM_LOAD( "s1.a12", 0x30000, 0x20000, CRC(e033bccf) SHA1(29529c2eb1a1c667940bb4afe78dfb921a65380b) )
 ROM_END
 
-GAME( 1989, charon, 0, system16b,           charon, segas16b_state, init_generic_5704,       ROT90,   "bootleg", "Charon (develop version.)", 0 )
+void segas16b_state::init_charon()
+{
+	init_generic_5358();
+}
+
+GAME( 1989, charon, 0, system16b,           charon, segas16b_state, init_charon,       ROT90,   "bootleg", "Charon (develop version.)", 0 )

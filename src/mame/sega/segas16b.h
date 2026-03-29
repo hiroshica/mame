@@ -135,6 +135,7 @@ public:
 	void init_shinobi3_5358();
 	void init_altbeas4_5521();
 	void init_aliensyn7_5358_small();
+	void init_charon();
 
 	DECLARE_INPUT_CHANGED_MEMBER(handy_w);
 
