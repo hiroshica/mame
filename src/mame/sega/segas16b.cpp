@@ -10431,7 +10431,7 @@ ROM_START( charon )
 	ROM_LOAD16_BYTE( "pro1e.a8", 0x40000, 0x20000, CRC(6211eabf) SHA1(9697b5c2c11344d2cd26a8a03da572bd88e58b07) )
 	ROM_LOAD16_BYTE( "pro1o.a6", 0x40001, 0x20000, CRC(0a927fb5) SHA1(45b7bc2a5a15e6104dfc63a017c1f4e984ad0844) )
 
-	ROM_REGION( 0xc0000, "gfx1", 0 ) // tiles
+	ROM_REGION( 0xc0000, "tiles", 0 ) // tiles
 	ROM_LOAD( "b0-0.a14", 0x00000, 0x20000, CRC(8f0e1522) SHA1(6721f9a11d38f648720bf17a845e67f33b64a46a) )
 	ROM_LOAD( "b1-0.b14", 0x20000, 0x20000, CRC(d6162b13) SHA1(5f48ba0f417a347159525c93d1588aaca9d3d307) )
 	ROM_LOAD( "b0-1.a15", 0x40000, 0x20000, CRC(6cfb2db5) SHA1(747d8634702f44929b7f5a1ad5d6daab2642ebfd) )
@@ -10462,7 +10462,8 @@ ROM_END
 
 void segas16b_state::init_charon()
 {
-	init_generic_5358();
+	init_generic_5521();
 }
 
-GAME( 1989, charon, 0, system16b,           charon, segas16b_state, init_charon,       ROT90,   "bootleg", "Charon (develop version.)", 0 )
+GAME( 1989, charon, 0, system16b,           charon, segas16b_state, init_generic_5521,       ROT90,   "bootleg", "Charon (develop version.)", 0 )
+//GAME( 1988, altbeast,   0,        system16b_i8751,       altbeast, segas16b_state, init_generic_5521,       ROT0,   "Sega", "Altered Beast (set 8) (8751 317-0078)", 0 )
