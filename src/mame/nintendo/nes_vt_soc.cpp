@@ -89,7 +89,6 @@ nes_vt02_vt03_soc_device::nes_vt02_vt03_soc_device(const machine_config& mconfig
 	m_initial_e000_bank(0xff),
 	m_ntram(nullptr),
 	m_chrram(nullptr),
-	m_4150_write_cb(*this),
 	m_411e_write_cb(*this),
 	m_41e6_write_cb(*this),
 	m_space_config("program", ENDIANNESS_LITTLE, 8, 25, 0, address_map_constructor(FUNC(nes_vt02_vt03_soc_device::program_map), this)),
@@ -328,7 +327,9 @@ u8 nes_vt02_vt03_soc_device::vt03_410x_r(offs_t offset)
 }
 
 
-// Source: https://wiki.nesdev.com/w/index.php/NES_2.0_submappers/Proposals#NES_2.0_Mapper_256
+// Source:
+// - https://www.nesdev.org/wiki/NES_2.0_submappers#NES_2.0_Mapper_256
+// - https://www.nesdev.org/wiki/NES_2.0_Mapper_256
 
 void nes_vt02_vt03_soc_device::scrambled_410x_w(u16 offset, u8 data)
 {

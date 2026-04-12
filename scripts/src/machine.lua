@@ -1645,6 +1645,18 @@ end
 
 ---------------------------------------------------
 --
+--@src/devices/machine/i7110.h,MACHINES["I7110"] = true
+---------------------------------------------------
+
+if (MACHINES["I7110"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/i7110.cpp",
+		MAME_DIR .. "src/devices/machine/i7110.h",
+	}
+end
+
+---------------------------------------------------
+--
 --@src/devices/machine/i7220.h,MACHINES["I7220"] = true
 ---------------------------------------------------
 
@@ -4166,6 +4178,19 @@ if MACHINES["X2212"] then
 	files {
 		MAME_DIR .. "src/devices/machine/x2212.cpp",
 		MAME_DIR .. "src/devices/machine/x2212.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/machine/x28.h,MACHINES["X28"] = true
+---------------------------------------------------
+
+if MACHINES["X28"] then
+	files {
+		MAME_DIR .. "src/devices/machine/x28.cpp",
+		MAME_DIR .. "src/devices/machine/x28.ipp",
+		MAME_DIR .. "src/devices/machine/x28.h",
 	}
 end
 
