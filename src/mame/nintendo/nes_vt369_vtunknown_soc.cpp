@@ -299,7 +299,7 @@ void vt3xx_soc_base_device::vt369_map(address_map &map)
 
 	map(0x418a, 0x418a).r(FUNC(vt3xx_soc_base_device::vt369_418a_r));
 
-	// gb50_150 uses this before accessing the SD card
+	// UART block similar to VT268 (used by gb50_150 for diagnostic output when accessing the SD card)
 	map(0x4199, 0x4199).r(FUNC(vt3xx_soc_base_device::vt369_4199_uart_status_r));
 	map(0x419d, 0x419d).w(FUNC(vt3xx_soc_base_device::vt369_419d_uart_data_w));
 
@@ -425,7 +425,7 @@ void vt3xx_soc_base_device::vt_4153_port_out_w(u8 data)
 // it then sets vt_414x_port_direction_w to 0x20 (0010 0000)
 // and reads from 414b masking with 0x10
 // pixel246 does similar.  (of note, both otrail and pixel246 test more RAM than usual too)
-// 
+//
 // maybe the port can be configured in different modes?
 
 u8 vt3xx_soc_base_device::vt_414x_port_direction_r()
