@@ -1,8 +1,8 @@
 // license:BSD-3-Clause
 // copyright-holders:Bryan McPhail,Ernesto Corvi,Andrew Prime,Zsolt Vasvari
 // thanks-to:Fuzz
-#ifndef MAME_NEOGEO_NEOGEO_SPR_H
-#define MAME_NEOGEO_NEOGEO_SPR_H
+#ifndef MAME_SNK_NEOGEO_SPR_H
+#define MAME_SNK_NEOGEO_SPR_H
 
 #pragma once
 
@@ -126,7 +126,7 @@ DECLARE_DEVICE_TYPE(NEOGEO_SPRITE_REGULAR, neosprite_regular_device)
 class neosprite_optimized_device : public neosprite_base_device
 {
 public:
-	neosprite_optimized_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
+	neosprite_optimized_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock = 0);
 	virtual void optimize_sprite_data() override;
 	virtual void set_optimized_sprite_data(u8* sprdata, u32 mask) override;
 	virtual void draw_pixel(int romaddr, u32* dst, const pen_t *line_pens) override;
@@ -143,7 +143,7 @@ DECLARE_DEVICE_TYPE(NEOGEO_SPRITE_OPTIMZIED, neosprite_optimized_device)
 class neosprite_midas_device : public neosprite_base_device
 {
 public:
-	neosprite_midas_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
+	neosprite_midas_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock = 0);
 
 	virtual void draw_pixel(int romaddr, u32* dst, const pen_t *line_pens) override;
 
@@ -159,4 +159,4 @@ public:
 
 DECLARE_DEVICE_TYPE(NEOGEO_SPRITE_MIDAS, neosprite_midas_device)
 
-#endif // MAME_NEOGEO_NEOGEO_SPR_H
+#endif // MAME_SNK_NEOGEO_SPR_H

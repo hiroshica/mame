@@ -533,9 +533,9 @@ void vt36x_gtct885_state::gtct885_prot_w(u8 data)
 	// so 0x20, 0x10, and 0x08 are outputs
 	// some kind of serial device
 
-	m_protection->write_data((data & 0x20) ? true : false);
-	m_protection->write_enable((data & 0x10) ? true : false);
-	m_protection->write_clock((data & 0x08) ? true : false);
+	m_protection->write_data(BIT(data, 5));
+	m_protection->write_enable(BIT(data, 4));
+	m_protection->write_clock(BIT(data, 3));
 }
 
 u8 vt36x_gtct885_state::gtct885_prot_r()
@@ -548,9 +548,9 @@ u8 vt36x_gtct885_state::gtct885_prot_r()
 void vt4ffx_goretrop_state::goretrop_prot_w(u8 data)
 {
 	// direction is set to 0x0e before writing here
-	m_protection->write_data((data & 0x08) ? true : false);
-	m_protection->write_enable((data & 0x04) ? true : false);
-	m_protection->write_clock((data & 0x02) ? false : true);
+	m_protection->write_data(BIT(data, 3));
+	m_protection->write_enable(BIT(data, 2));
+	m_protection->write_clock(BIT(~data, 1));
 }
 
 u8 vt4ffx_goretrop_state::goretrop_prot_r()
@@ -576,8 +576,8 @@ void vt36x_tetrtin_state::lxcap_prot_w(u8 data)
 
 	*/
 
-	m_protection->write_data((data & 0x02) ? true : false);
-	m_protection->write_clock((data & 0x01) ? true : false);
+	m_protection->write_data(BIT(data, 1));
+	m_protection->write_clock(BIT(data, 0));
 }
 
 u8 vt36x_tetrtin_state::lxcap_prot_r()
@@ -590,8 +590,8 @@ u8 vt36x_tetrtin_state::lxcap_prot_r()
 
 void vt36x_tetrtin_state::pixel_prot_w(u8 data)
 {
-	m_protection->write_data((data & 0x10) ? true : false);
-	m_protection->write_clock((data & 0x20) ? true : false);
+	m_protection->write_data(BIT(data, 4));
+	m_protection->write_clock(BIT(data, 5));
 }
 
 u8 vt36x_tetrtin_state::pixel_prot_r()
@@ -612,8 +612,8 @@ void vt36x_tetrtin_state::nesvt270_prot_w(u8 data)
 
 void vt36x_otrail_state::otrail_seeprom_w(u8 data)
 {
-	m_i2cmem->write_scl((data & 0x04) ? true : false);
-	m_i2cmem->write_sda((data & 0x08) ? true : false);
+	m_i2cmem->write_scl(BIT(data, 2));
+	m_i2cmem->write_sda(BIT(data, 3));
 }
 
 void vt36x_otrail_state::otrail_sound_w(u8 data)
@@ -758,7 +758,7 @@ void vt36x_gtct885_state::vt36x_8mb_gtct885(machine_config &config)
 	m_soc->io_4153_read_callback().set(FUNC(vt36x_gtct885_state::gtct885_prot_r));
 	m_soc->io_4152_write_callback().set(FUNC(vt36x_gtct885_state::gtct885_prot_w));
 
-	VT_MENU_PROTECTION(config, m_protection, 0);
+	VT_MENU_PROTECTION(config, m_protection);
 }
 
 void vt36x_gtct885_state::vt36x_altswap_2mb_36pcase(machine_config &config)
@@ -768,7 +768,10 @@ void vt36x_gtct885_state::vt36x_altswap_2mb_36pcase(machine_config &config)
 	m_soc->io_4153_read_callback().set(FUNC(vt36x_gtct885_state::gtct885_prot_r));
 	m_soc->io_4152_write_callback().set(FUNC(vt36x_gtct885_state::gtct885_prot_w));
 
-	VT_MENU_PROTECTION(config, m_protection, 0);
+	m_soc->enable_36pcase_gpio();
+	VT_MENU_PROTECTION(config, m_protection);
+	m_protection->set_read_start_byte(1);
+	m_protection->enable_36pcase_late_protocol();
 }
 
 void vt4ffx_goretrop_state::vt4ffx_32mb_goretrop(machine_config &config)
@@ -777,7 +780,7 @@ void vt4ffx_goretrop_state::vt4ffx_32mb_goretrop(machine_config &config)
 	m_soc->io_4139_read_callback().set(FUNC(vt4ffx_goretrop_state::goretrop_prot_r));
 	m_soc->io_4139_write_callback().set(FUNC(vt4ffx_goretrop_state::goretrop_prot_w));
 
-	VT_MENU_PROTECTION(config, m_protection, 0);
+	VT_MENU_PROTECTION(config, m_protection);
 }
 
 void vt4ffx_goretrop_state::vt4ffx_1mb_rbbrite(machine_config &config)
@@ -797,7 +800,7 @@ void vt4ffx_state::vt4ffx_h12p1000(machine_config &config)
 void vt36x_tetrtin_state::vt36x_1mb_tetrtin(machine_config &config)
 {
 	vt36x_1mb(config);
-	VT_MENU_PROTECTION_LXCAP(config, m_protection, 0);
+	VT_MENU_PROTECTION_LXCAP(config, m_protection);
 
 	m_soc->io_4153_read_callback().set(FUNC(vt36x_tetrtin_state::lxcap_prot_r));
 	m_soc->io_4152_write_callback().set(FUNC(vt36x_tetrtin_state::lxcap_prot_w));
@@ -806,7 +809,7 @@ void vt36x_tetrtin_state::vt36x_1mb_tetrtin(machine_config &config)
 void vt36x_tetrtin_state::vt36x_8mb_lxcap(machine_config &config)
 {
 	vt36x_8mb(config);
-	VT_MENU_PROTECTION_LXCAP(config, m_protection, 0);
+	VT_MENU_PROTECTION_LXCAP(config, m_protection);
 
 	m_soc->io_4153_read_callback().set(FUNC(vt36x_tetrtin_state::lxcap_prot_r));
 	m_soc->io_4152_write_callback().set(FUNC(vt36x_tetrtin_state::lxcap_prot_w));
@@ -815,7 +818,7 @@ void vt36x_tetrtin_state::vt36x_8mb_lxcap(machine_config &config)
 void vt36x_tetrtin_state::vt36x_8mb_pixel(machine_config &config)
 {
 	vt36x_8mb(config);
-	VT_MENU_PROTECTION_LXCAP(config, m_protection, 0);
+	VT_MENU_PROTECTION_LXCAP(config, m_protection);
 
 	m_soc->io_414b_read_callback().set(FUNC(vt36x_tetrtin_state::pixel_prot_r));
 	m_soc->io_414a_write_callback().set(FUNC(vt36x_tetrtin_state::pixel_prot_w));
@@ -824,7 +827,7 @@ void vt36x_tetrtin_state::vt36x_8mb_pixel(machine_config &config)
 void vt36x_tetrtin_state::vt36x_16mb_nesvt270(machine_config &config)
 {
 	vt36x_16mb(config);
-	VT_MENU_PROTECTION_LXCAP(config, m_protection, 0); // might not be this device
+	VT_MENU_PROTECTION_LXCAP(config, m_protection); // might not be this device
 
 	m_soc->io_414b_read_callback().set(FUNC(vt36x_tetrtin_state::nesvt270_prot_r));
 	m_soc->io_414b_write_callback().set(FUNC(vt36x_tetrtin_state::nesvt270_prot_w));
@@ -834,9 +837,9 @@ void vt36x_tetrtin_state::vt36x_16mb_nesvt270(machine_config &config)
 void vt36x_otrail_state::vt36x_1mb_otrail(machine_config &config)
 {
 	vt36x_1mb(config);
-	VT_MENU_PROTECTION_LXCAP(config, m_protection, 0);
+	VT_MENU_PROTECTION_LXCAP(config, m_protection);
 
-	I2C_24C04(config, "i2cmem", 0);
+	I2C_24C04(config, "i2cmem");
 
 	SPEAKER(config, "internal").front_center();
 
@@ -1183,8 +1186,10 @@ ROM_START( 36pcase )
 	ROM_REGION( 0x200000, "mainrom", 0 )
 	ROM_LOAD( "25q16.ic3", 0x00000, 0x200000, CRC(a8edb73e) SHA1(1028656530e411607ffa3b63788b42e41bf971d7) )
 
+	VT3XX_INTERNAL_NO_SWAP // verified for this set
+
 	ROM_REGION( 0x100, "protection", 0 ) // data from additional 8-pin chip for protection (put at 0xe01 in RAM) (checks for something before this)
-	ROM_LOAD( "mystery chip.bin", 0x00000, 0x100, NO_DUMP )
+	ROM_LOAD( "serial-rom.bin", 0x00000, 0x100, CRC(877fb90b) SHA1(f8aa2512460244b03fb2f3c013f063c836adf1bd) )
 ROM_END
 
 
@@ -1839,7 +1844,7 @@ CONS( 201?, 240in1ar,  0,  0,  vt36x_altswap_32mb_4banks_red5mam, vt369, vt36x_s
 CONS( 2020, nubsupmf,   0,      0,  vt36x_altswap_4mb, vt369, vt36x_state, empty_init, "<unknown>", "NubSup Mini Game Fan", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
 
 // protected both with accesses involving 41e7 / 41eb / 414f (probably more IO ports, to get 2 bytes in RAM) and the serial devices to get ~0x100 bytes of code
-CONS( 202?, 36pcase,    0,      0,  vt36x_altswap_2mb_36pcase, vt369, vt36x_gtct885_state, empty_init, "<unknown>", "36-in-1 Classic Games phone case", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+CONS( 202?, 36pcase,    0,      0,  vt36x_altswap_2mb_36pcase, vt369, vt36x_gtct885_state, empty_init, "<unknown>", "36-in-1 Classic Games phone case", MACHINE_IMPERFECT_GRAPHICS )
 
 
 /*****************************************************************************
