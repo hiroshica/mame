@@ -13,6 +13,8 @@
 
 #include "pc8001.h"
 
+#include "pc88_sdip.h"
+
 #include "bus/centronics/ctronics.h"
 #include "bus/msx/ctrl/ctrl.h"
 #include "bus/nec_fdd/pc80s31k.h"
@@ -259,18 +261,27 @@ class pc8801fh_state : public pc8801mk2sr_state
 public:
 	pc8801fh_state(const machine_config &mconfig, device_type type, const char *tag)
 		: pc8801mk2sr_state(mconfig, type, tag)
+		, m_eeprom(*this, "eeprom")
 		, m_opna(*this, "opna")
+		, m_setup_mem_view(*this, "setup_mem_view")
+		, m_setup_io_view(*this, "setup_io_view")
 	{ }
 
 	void pc8801fh(machine_config &config);
 
+	template <bool IS_DUMPED> void init_setup_mode();
+
 protected:
 	virtual void machine_start() override ATTR_COLD;
 	virtual void machine_reset() override ATTR_COLD;
-	virtual void main_io(address_map &map) override ATTR_COLD;
 
+	virtual void main_map(address_map &map) override ATTR_COLD;
+	virtual void main_io(address_map &map) override ATTR_COLD;
 private:
+	required_device<pc88_sdip_device> m_eeprom;
 	required_device<ym2608_device> m_opna;
+	memory_view m_setup_mem_view;
+	memory_view m_setup_io_view;
 	void opna_map(address_map &map) ATTR_COLD;
 
 	uint8_t cpuclock_r();
@@ -279,6 +290,8 @@ private:
 
 	uint8_t m_clock_setting = 0;
 	uint8_t m_baudrate_val = 0;
+
+	bool m_has_setup_mode;
 };
 
 // MA has a newer floppy BIOS, an extra dictionary ROM and optional bay for CD-ROM i/f
