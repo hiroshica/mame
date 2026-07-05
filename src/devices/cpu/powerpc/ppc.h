@@ -139,6 +139,10 @@ enum
 	PPC_TBL,
 	PPC_TBH,
 	PPC_DEC,
+	PPC_DAR,
+	PPC_DSISR,
+	PPC_IBAT0U, PPC_IBAT0L, PPC_IBAT1U, PPC_IBAT1L,
+	PPC_IBAT2U, PPC_IBAT2L, PPC_IBAT3U, PPC_IBAT3L,
 
 	PPC_SR0,
 	PPC_SR1,
@@ -159,10 +163,11 @@ enum
 };
 
 // compiler-specific options
-#define PPCDRC_STRICT_VERIFY        0x0001          /* verify all instructions */
-#define PPCDRC_FLUSH_PC             0x0002          /* flush the PC value before each memory access */
-#define PPCDRC_ACCURATE_SINGLES     0x0004          /* do excessive rounding to make single-precision results "accurate" */
-
+#define PPCDRC_STRICT_VERIFY          0x0001        // verify all instructions
+#define PPCDRC_FLUSH_PC               0x0002        // flush the PC value before each memory access
+#define PPCDRC_ACCURATE_SINGLES       0x0004        // do excessive rounding to make single-precision results "accurate"
+#define PPCDRC_FULL_CACHE_FLUSH       0x0008        // completely flush the DRC cache on ICBI.  Should never be necessary now.
+#define PPCDRC_STRICT_601_SELF_MODIFY 0x0010        // check for self-modifying code on 601 in the write handler (fairly large performance impact & does not work with RAM bypass)
 
 // common sets of options
 #define PPCDRC_COMPATIBLE_OPTIONS   (PPCDRC_STRICT_VERIFY | PPCDRC_FLUSH_PC | PPCDRC_ACCURATE_SINGLES)
@@ -233,7 +238,7 @@ public:
 	void ppcdrc_add_fastram(offs_t start, offs_t end, uint8_t readonly, void *base);
 	void ppcdrc_add_hotspot(offs_t pc, uint32_t opcode, uint32_t cycles);
 
-	TIMER_CALLBACK_MEMBER(decrementer_int_callback);
+	virtual TIMER_CALLBACK_MEMBER(decrementer_int_callback);
 	TIMER_CALLBACK_MEMBER(ppc4xx_buffered_dma_callback);
 	TIMER_CALLBACK_MEMBER(ppc4xx_fit_callback);
 	TIMER_CALLBACK_MEMBER(ppc4xx_pit_callback);
@@ -253,10 +258,26 @@ public:
 	void ppccom_execute_mfspr();
 	void ppccom_execute_mftb();
 	void ppccom_execute_mtspr();
+	void ppccom_execute_mtsr();
+	void ppccom_execute_icbi();
+	void ppccom_invalidate_codepage();
 	void ppccom_tlb_flush();
+
+	// per-block entry translation check: blocks are keyed on effective address,
+	// so on any MMU change each block re-verifies its own mapping at next entry
+	struct ppc_entry_check
+	{
+		ppc_device *ppc;                // owning device
+		uint32_t    generation;         // translation generation this block last verified against
+		offs_t      pc;                 // effective PC of the block
+		offs_t      physpc;             // physical PC it was compiled from
+	};
+	void ppc_check_translation(ppc_entry_check *chk);
+	std::vector<ppc_entry_check *> m_entry_checks;   // live per-block checks, released on cache flush
 	void ppccom_execute_mfdcr();
 	void ppccom_execute_mtdcr();
 	void ppccom_get_dsisr();
+	void ppccom_fcmp_vx();
 
 protected:
 	// device_t implementation
@@ -345,6 +366,13 @@ protected:
 		double          fp0;                        // floating point 0
 		uint32_t        reserve;
 		uint32_t        reserve_address;
+
+		// FP save values
+		double fpscr_op[2];
+
+		uint32_t m_codepage_any;                    // nonzero if any page bit is set (UML-readable)
+		uint32_t m_translation_generation;          // bumped whenever the MMU mapping may have changed (UML-readable)
+		uint32_t m_codewatch_ea;                    // effective address of an in-progress store (601 write-watch)
 	};
 
 	internal_ppc_state *m_core;
@@ -584,6 +612,21 @@ protected:
 	// internal stuff
 	uint8_t               m_cache_dirty;                // true if we need to flush the cache
 
+	// track what logical pages have compiled code
+	std::vector<uint8_t>  m_codepage_bits;              // 1 bit for each 4K page
+	uint32_t              m_codewrite_skip_page = ~uint32_t(0);   // 601 write-watch: page to leave unmarked for one recompile
+
+	// After a 601 self-modifying store, we clear the page's code bit and
+	// immediately recompile the store's own block.  We leave the bit clear for
+	// that whole recompile because a block can hold several sequences that would
+	// each re-mark the page and infinite-loop the write watch mechanism).
+	// The bit is set back to normal when the modified code later runs and
+	// recompiles, so any future self-modifies are still caught.  m_codewrite_skip_page
+	// is cleared at the end of code_compile_block, so this applies to one recompile.
+	void note_code_page(uint32_t page) { if (page != m_codewrite_skip_page) { m_codepage_bits[page >> 3] |= 1 << (page & 7); m_core->m_codepage_any = 1; } }
+	bool code_page_has_code(offs_t addr) const { uint32_t const page = (addr >> 12) & 0xfffff; return BIT(m_codepage_bits[page >> 3], page & 7); }
+	bool invalidate_code_range(offs_t start, offs_t end);
+
 	// reservation granularity
 	uint32_t m_reservation_mask;
 
@@ -619,6 +662,8 @@ protected:
 	uml::code_handle *   m_write64mask[8];             // write double
 	uml::code_handle *   m_exception[EXCEPTION_COUNT]; // array of exception handlers
 	uml::code_handle *   m_exception_norecover[EXCEPTION_COUNT];   // array of exception handlers
+	uml::code_handle *   m_fpscr_finish;
+	uml::code_handle *   m_code_write_reset;           // 601: recompile after a write to compiled code
 
 	// fast RAM
 	// fast RAM info
@@ -661,8 +706,8 @@ protected:
 	void set_xer(uint32_t value);
 	uint64_t get_timebase();
 	void set_timebase(uint64_t newtb);
-	uint32_t get_decrementer();
-	void set_decrementer(uint32_t newdec);
+	virtual uint32_t get_decrementer();
+	virtual void set_decrementer(uint32_t newdec);
 	uint32_t ppccom_translate_address_internal(int intention, bool debug, offs_t &address);
 	void ppc4xx_set_irq_line(uint32_t bitmask, int state);
 	int ppc4xx_get_irq_line(uint32_t bitmask);
@@ -688,18 +733,23 @@ protected:
 	void static_generate_nocode_handler();
 	void static_generate_out_of_cycles();
 	void static_generate_tlb_mismatch();
+	void static_generate_code_write_reset();
 	void static_generate_exception(uint8_t exception, int recover, const char *name);
 	void static_generate_memory_accessor(int mode, int size, bool iswrite, bool ismasked, bool isreserve, const char *name, uml::code_handle *&handleptr, uml::code_handle *masked);
 	void static_generate_swap_tgpr();
 	void static_generate_lsw_entries(int mode);
 	void static_generate_stsw_entries(int mode);
+	void static_generate_fpscr_finish();
+	void generate_set_fmod(drcuml_block &block);
 	void generate_update_mode(drcuml_block &block);
 	void generate_update_cycles(drcuml_block &block, compiler_state *compiler, uml::parameter param, bool allow_exception);
+	void generate_recompile_if(drcuml_block &block, compiler_state *compiler, const opcode_desc *desc, uml::parameter flag, int exitcode);
+	void generate_translation_check(drcuml_block &block, compiler_state *compiler, const opcode_desc *seqhead, uint8_t mode);
 	void generate_checksum_block(drcuml_block &block, compiler_state *compiler, const opcode_desc *seqhead, const opcode_desc *seqlast);
 	void generate_sequence_instruction(drcuml_block &block, compiler_state *compiler, const opcode_desc *desc);
 	void generate_compute_flags(drcuml_block &block, const opcode_desc *desc, int updatecr, uint32_t xermask, int invertcarry);
 	void generate_shift_flags(drcuml_block &block, const opcode_desc *desc, uint32_t op);
-	void generate_fp_flags(drcuml_block &block, const opcode_desc *desc, int updatefprf);
+	void generate_fp_flags(drcuml_block &block, const opcode_desc *desc);
 	void generate_branch(drcuml_block &block, compiler_state *compiler, const opcode_desc *desc, int source, uint8_t link);
 	void generate_branch_bo(drcuml_block &block, compiler_state *compiler, const opcode_desc *desc, uint32_t bo, uint32_t bi, int source, int link);
 	bool generate_opcode(drcuml_block &block, compiler_state *compiler, const opcode_desc *desc);
@@ -757,6 +807,10 @@ public:
 
 protected:
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
+
+	virtual uint32_t get_decrementer() override;
+	virtual void set_decrementer(uint32_t newdec) override;
+	virtual TIMER_CALLBACK_MEMBER(decrementer_int_callback) override;
 };
 
 
