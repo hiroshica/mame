@@ -29933,8 +29933,8 @@ amspdwya
 
 @source:misc/amstarz80.cpp
 holddraw
-unkamst
-unkamsta
+holddrawa
+holddrawb
 
 @source:misc/amusco.cpp
 amusco
@@ -34178,6 +34178,7 @@ zelost
 @source:namco/namconb1.cpp
 gslgr94j
 gslgr94u
+gslgr94ua
 gslugrsj
 gunbuletj
 gunbuletw
@@ -36124,6 +36125,7 @@ powerinsc
 powerinsj
 powerinspj
 powerinspu
+puzlwrld
 raphero
 rapheroa
 redfoxwp2
@@ -44162,6 +44164,32 @@ sols5e
 @source:skeleton/squale.cpp
 squale
 
+@source:skeleton/st25.cpp
+alphar
+amarillo
+arenau
+avanti
+ballermn
+bgaction
+bigkick
+blizzard
+boosters
+colossos
+cttower
+galaktca
+jamaica
+macaor
+majesto
+matrixx
+mtclssic
+purpurr
+robin
+spasch
+stakeoff
+tango
+tobago
+xeno
+
 @source:skeleton/sterz80.cpp
 tongzi
 
@@ -48764,6 +48792,7 @@ spinlbrku
 spinlbrkup
 svolly91
 turbofrc
+turbofrcj
 turbofrco
 turbofrcu
 turbofrcua
