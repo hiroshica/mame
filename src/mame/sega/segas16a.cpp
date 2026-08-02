@@ -142,7 +142,7 @@ Alex Kid       EPR10435  EPR10436  -         -         EPR10437  EPR10441  EPR10
 Fantasy Zone   -         -         -         -         EPR7392   EPR7396   EPR7393   EPR7397   EPR7394   EPR7398   -         -
 SDI            -         -         -         -         EPR10760  EPR10763  EPR10761  EPR10764  EPR10762  EPR10765  -         -
 Shinobi        EPR11268  -         -         -         EPR11290  EPR11294  EPR11291  EPR11295  EPR11292  EPR11296  EPR11293  EPR11297
-Tetris         -         -         -         -         EPR12169  EPR12170  -         -         -         -         -         -
+Tetris         -         -         -         -         EPR12169  EPR12170  -         -         -         -         -         -nd
 
 ***************************************************************************/
 
@@ -3000,12 +3000,12 @@ ROM_START( fantzone )
 	ROM_LOAD( "epr-7390.93",  0x10000, 0x08000, CRC(d90609c6) SHA1(4232f6ecb21f242c0c8d81e06b88bc742668609f) )
 
 	ROM_REGION16_BE( 0x30000, "sprites", 0 ) // sprites
-	ROM_LOAD16_BYTE( "epr-7392.10",  0x00001, 0x8000, CRC(5bb7c8b6) SHA1(eaa0ed63ac4f66ee285757e842bdd7b005292600) )
-	ROM_LOAD16_BYTE( "epr-7396.11",  0x00000, 0x8000, CRC(74ae4b57) SHA1(1f24b1faea765994b85f0e7ac8e944c8da22103f) )
-	ROM_LOAD16_BYTE( "epr-7393.17",  0x10001, 0x8000, CRC(14fc7e82) SHA1(ca7caca989a3577dd30ad4f66b0fcce712a454ef) )
-	ROM_LOAD16_BYTE( "epr-7397.18",  0x10000, 0x8000, CRC(e05a1e25) SHA1(9691d9f0763b7483ee6912437902f22ab4b78a05) )
-	ROM_LOAD16_BYTE( "epr-7394.23",  0x20001, 0x8000, CRC(531ca13f) SHA1(19e68bc515f6021e1145cff4f3f0e083839ee8f3) )
-	ROM_LOAD16_BYTE( "epr-7398.24",  0x20000, 0x8000, CRC(68807b49) SHA1(0a189da8cdd2090e76d6d06c55b478abce60542d) )
+	ROM_LOAD16_BYTE( "epr-7392.10",  0x00000, 0x8000, CRC(5bb7c8b6) SHA1(eaa0ed63ac4f66ee285757e842bdd7b005292600) )
+	ROM_LOAD16_BYTE( "epr-7396.11",  0x00001, 0x8000, CRC(74ae4b57) SHA1(1f24b1faea765994b85f0e7ac8e944c8da22103f) )
+	ROM_LOAD16_BYTE( "epr-7393.17",  0x10000, 0x8000, CRC(14fc7e82) SHA1(ca7caca989a3577dd30ad4f66b0fcce712a454ef) )
+	ROM_LOAD16_BYTE( "epr-7397.18",  0x10001, 0x8000, CRC(e05a1e25) SHA1(9691d9f0763b7483ee6912437902f22ab4b78a05) )
+	ROM_LOAD16_BYTE( "epr-7394.23",  0x20000, 0x8000, CRC(531ca13f) SHA1(19e68bc515f6021e1145cff4f3f0e083839ee8f3) )
+	ROM_LOAD16_BYTE( "epr-7398.24",  0x20001, 0x8000, CRC(68807b49) SHA1(0a189da8cdd2090e76d6d06c55b478abce60542d) )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 ) // sound CPU
 	ROM_LOAD( "epr-7535a.12", 0x0000, 0x8000, CRC(bc1374fa) SHA1(ed2c87ae024dc251e175239f1bccc728fc096548) )
