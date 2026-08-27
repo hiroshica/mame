@@ -99,6 +99,7 @@ public:
 	void ds_w(int ds);
 
 	void set_floppy(floppy_image_device *floppy);
+	void disable(int state);
 
 protected:
 	// device-level overrides
@@ -109,6 +110,8 @@ protected:
 	TIMER_CALLBACK_MEMBER(update_tick);
 
 private:
+	static constexpr unsigned WRITE_BATCH_SIZE = 32;
+
 	enum {
 		IDLE,
 		RUNNING,
@@ -136,9 +139,7 @@ private:
 
 		uint8_t yb = 0;
 		uint8_t shift_reg_write = 0;
-		attotime write_start_time;
-		attotime write_buffer[32];
-		int write_position = 0;
+		unsigned write_transition_count = 0;
 	};
 
 	devcb_write_line m_write_atn;
@@ -148,6 +149,7 @@ private:
 	floppy_image_device *m_floppy;
 
 	int m_mtr;
+	bool m_disabled;
 	int m_accl;
 	int m_stp;
 	int m_ds;
@@ -168,7 +170,7 @@ private:
 	void rollback();
 	bool write_next_bit(bool bit, const attotime &limit);
 	void start_writing(const attotime &tm);
-	void commit(const attotime &tm, bool force = false);
+	void commit(const attotime &tm);
 	void stop_writing(const attotime &tm);
 	void live_delay(int state);
 	void live_sync();

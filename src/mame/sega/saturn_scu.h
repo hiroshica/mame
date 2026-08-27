@@ -9,6 +9,9 @@
 #include "cpu/sh/sh7604.h"
 #include "cpu/scudsp/scudsp.h"
 
+#include <tuple>
+
+
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
@@ -21,6 +24,12 @@ public:
 	// construction/destruction
 	saturn_scu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+	template <typename T> void set_hostcpu(T &&tag) { m_hostcpu.set_tag(std::forward<T>(tag)); }
+	auto main_dtack_cb()  { return m_main_dtack_cb.bind(); }
+	auto main_steal_cb()  { return m_main_steal_cb.bind(); }
+	auto sound_dtack_cb() { return m_sound_dtack_cb.bind(); }
+	auto sound_steal_cb() { return m_sound_steal_cb.bind(); }
+
 	// I/O operations
 	void regs_map(address_map &map) ATTR_COLD;
 
@@ -31,11 +40,20 @@ public:
 	void sound_req_w(int state);
 	void smpc_irq_w(int state);
 
-	template <typename T> void set_hostcpu(T &&tag) { m_hostcpu.set_tag(std::forward<T>(tag)); }
-	auto bbus_sound_dtack_cb() { return m_bbus_sound_dtack_cb.bind(); }
-	auto cbus_dtack_cb()       { return m_cbus_dtack_cb.bind(); }
-
 	IRQ_CALLBACK_MEMBER(irq_ack_cb);
+
+	// bus flags
+	static constexpr uint16_t A_BUS       = 0x0100;
+	static constexpr uint16_t A_BUS_CS0   = 0x0101;
+	static constexpr uint16_t A_BUS_CS1   = 0x0102;
+	static constexpr uint16_t A_BUS_DUMMY = 0x0103;
+	static constexpr uint16_t A_BUS_CS2   = 0x0104;
+	static constexpr uint16_t B_BUS       = 0x0200;
+	static constexpr uint16_t B_BUS_SCSP  = 0x0201;
+	static constexpr uint16_t B_BUS_VDP1  = 0x0202;
+	static constexpr uint16_t B_BUS_VDP2  = 0x0203;
+	static constexpr uint16_t B_BUS_SCU   = 0x0204;
+	static constexpr uint16_t C_BUS       = 0x0300;
 
 protected:
 	// device-level overrides
@@ -50,8 +68,10 @@ private:
 	required_device<scudsp_cpu_device> m_scudsp;
 	required_device<sh7604_device> m_hostcpu;
 	address_space *m_hostspace;
-	devcb_write_line m_bbus_sound_dtack_cb;
-	devcb_write_line m_cbus_dtack_cb;
+	devcb_write_line m_main_dtack_cb;
+	devcb_write8     m_main_steal_cb;
+	devcb_write_line m_sound_dtack_cb;
+	devcb_write8     m_sound_steal_cb;
 
 	enum dma_id : int {
 		DMALV0_ID = 0,
@@ -162,13 +182,14 @@ private:
 		bool        rup;
 		bool        wup;
 		bool        done;
-		bool        cbus_cache_through;
 		bool        bbus_sound_access;
+		int         transfer_penalty;
 	}m_dma[3];
 
-	typedef void (saturn_scu_device::*dma_transfer_func)(dma_channel_t &ch);
+	using dma_transfer_func = void (saturn_scu_device::*)(dma_channel_t &ch);
 	static const dma_transfer_func dma_transfer_table[4];
 
+	std::tuple<u16, int> get_address_flags(u32 address, bool write_op);
 	void dma_transfer_direct_default(dma_channel_t &ch);
 	void dma_transfer_direct_cbus_write(dma_channel_t &ch);
 	void dma_transfer_direct_cd(dma_channel_t &ch);
@@ -186,7 +207,7 @@ private:
 	void scudsp_dma_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 
 	// DMA
-	template <unsigned level> void dma_map(address_map &map);
+	template <unsigned Level> void dma_map(address_map &map);
 	uint32_t dma_status_r();
 
 	// Timers
@@ -199,6 +220,8 @@ private:
 	void irq_mask_w(offs_t offset, uint32_t data, uint32_t mem_mask = ~0);
 	void irq_status_w(offs_t offset, uint32_t data, uint32_t mem_mask = ~0);
 	uint32_t version_r();
+	// A-Bus section
+	void abus_irqack_w(offs_t offset, uint32_t data, uint32_t mem_mask = ~0);
 };
 
 // device type definition

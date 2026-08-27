@@ -15,8 +15,6 @@ files {
 	MAME_DIR .. "src/devices/video/poly.h",
 	MAME_DIR .. "src/devices/video/sprite.cpp",
 	MAME_DIR .. "src/devices/video/sprite.h",
-	MAME_DIR .. "src/devices/video/vector.cpp",
-	MAME_DIR .. "src/devices/video/vector.h",
 }
 
 --------------------------------------------------
@@ -736,6 +734,18 @@ if VIDEOS["I8275"] then
 	files {
 		MAME_DIR .. "src/devices/video/i8275.cpp",
 		MAME_DIR .. "src/devices/video/i8275.h",
+	}
+end
+
+--------------------------------------------------
+--
+--@src/devices/video/ili9335.h,VIDEOS["ILI9335"] = true
+--------------------------------------------------
+
+if VIDEOS["ILI9335"] then
+	files {
+		MAME_DIR .. "src/devices/video/ili9335.cpp",
+		MAME_DIR .. "src/devices/video/ili9335.h",
 	}
 end
 

@@ -85,7 +85,7 @@ ioport_constructor rainbow2_device::device_input_ports() const
 void rainbow2_device::device_add_mconfig(machine_config &config)
 {
 	// default to PAL
-	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	SCREEN(config, m_screen);
 	m_screen->set_raw(30_MHz_XTAL, 960, 0, 768, 625, 0, 576); // exact values not known
 	m_screen->set_screen_update(FUNC(rainbow2_device::screen_update));
 }
@@ -125,13 +125,13 @@ void rainbow2_device::control_w(offs_t offset, uint8_t data)
 	{
 		// NTSC
 		rectangle v(0, 768 - 1, 0, 480 - 1);
-		m_screen->configure(960, 525, v, attotime::from_ticks(960 * 525, 30_MHz_XTAL).as_attoseconds());
+		m_screen->configure(960, 525, v, attotime::from_ticks(960 * 525, 30_MHz_XTAL));
 	}
 	else
 	{
 		// PAL
 		rectangle v(0, 768 - 1, 0, 576 - 1);
-		m_screen->configure(960, 625, v, attotime::from_ticks(960 * 625, 30_MHz_XTAL).as_attoseconds());
+		m_screen->configure(960, 625, v, attotime::from_ticks(960 * 625, 30_MHz_XTAL));
 	}
 
 	m_control = data & 0x0f;

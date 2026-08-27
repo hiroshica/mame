@@ -618,7 +618,7 @@ void ssfindo_state::ssfindo(machine_config &config)
 
 	I2C_24C01(config, m_i2cmem);
 
-	SCREEN(config, "screen", SCREEN_TYPE_RASTER);
+	SCREEN(config, "screen");
 
 	ARM_VIDC20(config, m_vidc, 24_MHz_XTAL);
 	m_vidc->set_screen("screen");
@@ -630,6 +630,7 @@ void ssfindo_state::ssfindo(machine_config &config)
 	m_iomd->set_vidc_tag(m_vidc);
 	m_iomd->iolines_read().set(FUNC(ssfindo_state::iolines_r));
 	m_iomd->iolines_write().set(FUNC(ssfindo_state::iolines_w));
+	m_iomd->irq_cb().set_inputline(m_maincpu, arm7_cpu_device::ARM7_IRQ_LINE);
 
 	SPEAKER(config, "speaker", 2).front();
 

@@ -21,16 +21,20 @@
 #include "bus/amiga/keyboard/keyboard.h"
 #include "bus/amiga/zorro/zorro.h"
 #include "bus/ata/ataintf.h"
+#include "bus/nscsi/devices.h"
 #include "bus/pccard/sram.h"
 #include "cpu/lc6500/lc6554.h"
 #include "cpu/m68000/m68000.h"
-#include "cpu/m6502/m6502.h"
+#include "cpu/m6502/m6500_1.h"
+#include "machine/53c7xx.h"
 #include "machine/6525tpi.h"
-#include "machine/mos6526.h"
-#include "machine/dmac.h"
-#include "machine/nvram.h"
-#include "machine/i2cmem.h"
 #include "machine/cr511b.h"
+#include "machine/dmac.h"
+#include "machine/i2cmem.h"
+#include "machine/input_merger.h"
+#include "machine/mos6526.h"
+#include "machine/nscsi_bus.h"
+#include "machine/nvram.h"
 #include "machine/ram.h"
 #include "machine/rp5c01.h"
 #include "video/pwm.h"
@@ -354,6 +358,9 @@ public:
 		, m_cdrom(*this, "cdrom")
 		, m_lcdcpu(*this, "lcdcpu")
 		, m_vfd_display(*this, "vfd")
+		, m_rccpu(*this, "rccpu")
+		, m_kbclock(*this, "kbclock")
+		, m_kbdata(*this, "kbdata")
 		, m_frontpanel_power(*this, "frontpanel_power")
 		, m_frontpanel_buttons(*this, "frontpanel_kst%u", 0U)
 		, m_vfd_ampm(*this, "ampm%u", 0U)
@@ -374,7 +381,6 @@ public:
 	void cdtv(machine_config &config);
 	void cdtvn(machine_config &config);
 	void cdtv_mem(address_map &map) ATTR_COLD;
-	void cdtv_rc_mem(address_map &map) ATTR_COLD;
 
 protected:
 	// driver_device overrides
@@ -395,6 +401,12 @@ private:
 	void sten_w(int state);
 	void drq_w(int state);
 
+	uint8_t rccpu_porta_r();
+	void rccpu_porta_w(uint8_t data);
+	uint8_t rccpu_portb_r();
+	void rccpu_portb_w(uint8_t data);
+
+	uint8_t lcdcpu_cpcp_r();
 	uint8_t lcdcpu_frontpanel_key_r();
 	void lcdcpu_frontpanel_select_w(uint8_t data);
 	uint8_t lcdcpu_rtc_data_r();
@@ -419,6 +431,9 @@ private:
 	required_device<cr511b_device> m_cdrom;
 	required_device<lc6554_cpu_device> m_lcdcpu;
 	required_device<pwm_display_device> m_vfd_display;
+	required_device<m6500_1_device> m_rccpu;
+	required_device<input_merger_all_high_device> m_kbclock;
+	required_device<input_merger_all_high_device> m_kbdata;
 	required_ioport m_frontpanel_power;
 	required_ioport_array<4> m_frontpanel_buttons;
 	output_finder<2> m_vfd_ampm;
@@ -433,10 +448,13 @@ private:
 	bool m_sten;
 	uint8_t m_genlock_mode_select = 0; // ms0 and ms1
 
+	uint8_t m_rc_portb = 0xff;
+
 	uint8_t m_frontpanel_select = 0;
 	uint8_t m_rtc_data = 0;
 	uint8_t m_rtc_addr = 0;
 	uint8_t m_lcd_porti = 0;
+	uint8_t m_lcd_portj = 0;
 	uint8_t m_lcd_portp = 0;
 	uint8_t m_vfd_seg = 0;
 	uint8_t m_vfd_grid = 0;
@@ -447,6 +465,7 @@ class a3000_state : public amiga_state
 public:
 	a3000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: amiga_state(mconfig, type, tag)
+		, m_zorro(*this, "zorro3")
 	{ }
 
 	void init_pal();
@@ -457,6 +476,12 @@ public:
 	void a3000_mem(address_map &map) ATTR_COLD;
 
 protected:
+	// driver_device overrides
+	virtual void machine_start() override ATTR_COLD;
+	virtual void machine_reset() override ATTR_COLD;
+
+	virtual bool int2_pending() override;
+	virtual bool int6_pending() override;
 
 private:
 	uint32_t scsi_r(offs_t offset, uint32_t mem_mask);
@@ -464,6 +489,17 @@ private:
 
 	uint32_t motherboard_r(offs_t offset, uint32_t mem_mask);
 	void motherboard_w(offs_t offset, uint32_t data, uint32_t mem_mask);
+
+	void zorro_int2_w(int state);
+	void zorro_int6_w(int state);
+	void zorro_xrdy_w(int state);
+	uint32_t zorro_dma_r(offs_t offset, uint32_t mem_mask);
+	void zorro_dma_w(offs_t offset, uint32_t data, uint32_t mem_mask);
+
+	required_device<zorro3_bus_device> m_zorro;
+
+	bool m_zorro_int2 = false;
+	bool m_zorro_int6 = false;
 };
 
 class a500p_state : public amiga_state
@@ -583,8 +619,9 @@ class a4000_state : public amiga_state
 public:
 	a4000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: amiga_state(mconfig, type, tag)
-		, m_fastram(*this, "ram") // tag needs to be "ram" for -ramsize
+		, m_fastram(*this, "ram")
 		, m_ata(*this, "ata")
+		, m_zorro(*this, "zorro3")
 		, m_ramsey_config(0)
 		, m_gary_coldboot(1)
 		, m_gary_timeout(0)
@@ -597,8 +634,57 @@ public:
 
 	void a4000(machine_config &config);
 	void a4000n(machine_config &config);
-	void a400030(machine_config &config);
-	void a400030n(machine_config &config);
+	void a4000_30(machine_config &config);
+	void a4000_30n(machine_config &config);
+
+protected:
+	// driver_device overrides
+	virtual void machine_start() override ATTR_COLD;
+	virtual void machine_reset() override ATTR_COLD;
+
+	// amiga_state overrides
+	virtual bool int2_pending() override;
+	virtual bool int6_pending() override;
+
+	void a4000_mem(address_map &map) ATTR_COLD;
+
+	required_device<ram_device> m_fastram;
+	required_device<ata_interface_device> m_ata;
+	required_device<zorro3_bus_device> m_zorro;
+
+private:
+	uint16_t ide_r(offs_t offset, uint16_t mem_mask);
+	void ide_w(offs_t offset, uint16_t data, uint16_t mem_mask);
+	void ide_interrupt_w(int state);
+
+	uint32_t motherboard_r(offs_t offset, uint32_t mem_mask);
+	void motherboard_w(offs_t offset, uint32_t data, uint32_t mem_mask);
+
+	void zorro_int2_w(int state);
+	void zorro_int6_w(int state);
+	void zorro_xrdy_w(int state);
+	uint32_t zorro_dma_r(offs_t offset, uint32_t mem_mask);
+	void zorro_dma_w(offs_t offset, uint32_t data, uint32_t mem_mask);
+
+	uint8_t m_ramsey_config;
+	bool m_gary_coldboot;
+	bool m_gary_timeout;
+	bool m_gary_toenb;
+
+	bool m_ide_interrupt = false;
+	bool m_zorro_int2 = false;
+	bool m_zorro_int6 = false;
+};
+
+class a4000t_state : public a4000_state
+{
+public:
+	a4000t_state(const machine_config &mconfig, device_type type, const char *tag)
+		: a4000_state(mconfig, type, tag)
+		, m_scsi(*this, "scsi")
+		, m_ncr(*this, "ncr")
+	{ }
+
 	void a4000t(machine_config &config);
 	void a4000tn(machine_config &config);
 
@@ -610,29 +696,16 @@ protected:
 	virtual bool int2_pending() override;
 
 private:
-	// TODO: create and move to a4000t_state
-	uint32_t scsi_r(offs_t offset, uint32_t mem_mask);
-	void scsi_w(offs_t offset, uint32_t data, uint32_t mem_mask);
+	uint32_t scsi_dma_r(offs_t offset, uint32_t mem_mask);
+	void scsi_dma_w(offs_t offset, uint32_t data, uint32_t mem_mask);
+	void scsi_interrupt_w(int state);
 
-	uint16_t ide_r(offs_t offset, uint16_t mem_mask);
-	void ide_w(offs_t offset, uint16_t data, uint16_t mem_mask);
-	void ide_interrupt_w(int state);
-
-	uint32_t motherboard_r(offs_t offset, uint32_t mem_mask);
-	void motherboard_w(offs_t offset, uint32_t data, uint32_t mem_mask);
-
-	void a4000_mem(address_map &map) ATTR_COLD;
-	void a400030_mem(address_map &map) ATTR_COLD;
 	void a4000t_mem(address_map &map) ATTR_COLD;
 
-	required_device<ram_device> m_fastram;
-	required_device<ata_interface_device> m_ata;
+	required_device<nscsi_bus_device> m_scsi;
+	required_device<ncr53c710_device> m_ncr;
 
-	uint8_t m_ramsey_config;
-	bool m_gary_coldboot;
-	bool m_gary_timeout;
-	bool m_gary_toenb;
-	bool m_ide_interrupt;
+	bool m_scsi_interrupt = false;
 };
 
 class cd32_state : public amiga_state
@@ -1076,6 +1149,52 @@ void cdtv_state::drq_w(int state)
 		m_dmac->xdreq_w(state);
 }
 
+uint8_t cdtv_state::rccpu_porta_r()
+{
+	// 7654----  not connected?
+	// ----3---  prdt
+	// -----2--  kbclock (output)
+	// ------1-  kbdata (output)
+	// -------0  irdt
+
+	return 0xff;
+}
+
+void cdtv_state::rccpu_porta_w(uint8_t data)
+{
+	m_kbclock->in_w<1>(BIT(data, 2));
+	m_kbdata->in_w<1>(BIT(data, 1));
+}
+
+uint8_t cdtv_state::rccpu_portb_r()
+{
+	// 7654----  lcd cpu port a (output)
+	// ----3---  lcd cpu port j0
+	// -----2--  kbse (keyboard sense)
+	// ------1-  lcd cpu port j3
+	// -------0  lcd cpu port j2
+
+	uint8_t data = 0xf0;
+
+	data |= BIT(m_lcd_portj, 0) << 3;
+	data |= 1 << 2; // pull high for now
+	data |= BIT(m_lcd_portj, 3) << 1;
+	data |= BIT(m_lcd_portj, 2) << 0;
+
+	return data;
+}
+
+void cdtv_state::rccpu_portb_w(uint8_t data)
+{
+	m_rc_portb = data;
+}
+
+uint8_t cdtv_state::lcdcpu_cpcp_r()
+{
+	// pb4 to pb7 connected to pa
+	return m_rc_portb >> 4;
+}
+
 uint8_t cdtv_state::lcdcpu_frontpanel_key_r()
 {
 	uint8_t data = 0x07;
@@ -1121,7 +1240,7 @@ void cdtv_state::lcdcpu_portg_w(uint8_t data)
 
 uint8_t cdtv_state::lcdcpu_porti_r()
 {
-	// 3---  auply (cd audio play)
+	// 3---  auply (output to the lc7883m)
 	// -2--  rtc wt (output)
 	// --1-  ms1
 	// ---0  ms0
@@ -1145,11 +1264,12 @@ uint8_t cdtv_state::lcdcpu_portj_r()
 	// --1-  vcc (power sense)
 	// ---0  aus2 to 6500/1
 
-	return m_frontpanel_power->read() << 1;
+	return m_lcd_portj | (m_frontpanel_power->read() << 1);
 }
 
 void cdtv_state::lcdcpu_portj_w(uint8_t data)
 {
+	m_lcd_portj = data & 0x0d;
 }
 
 void cdtv_state::lcdcpu_portk_w(uint8_t data)
@@ -1221,6 +1341,35 @@ void cdtv_state::vfd_update(offs_t offset, uint64_t data)
 	}
 }
 
+void a3000_state::machine_start()
+{
+	amiga_state::machine_start();
+
+	// register for save states
+	save_item(NAME(m_zorro_int2));
+	save_item(NAME(m_zorro_int6));
+}
+
+void a3000_state::machine_reset()
+{
+	// base reset
+	amiga_state::machine_reset();
+
+	// reset zorro devices
+	m_zorro->busrst_w(0);
+	m_zorro->busrst_w(1);
+}
+
+bool a3000_state::int2_pending()
+{
+	return m_cia_0_irq || m_zorro_int2;
+}
+
+bool a3000_state::int6_pending()
+{
+	return m_cia_1_irq || m_zorro_int6;
+}
+
 uint32_t a3000_state::scsi_r(offs_t offset, uint32_t mem_mask)
 {
 	uint32_t data = 0xffffffff;
@@ -1243,6 +1392,41 @@ uint32_t a3000_state::motherboard_r(offs_t offset, uint32_t mem_mask)
 void a3000_state::motherboard_w(offs_t offset, uint32_t data, uint32_t mem_mask)
 {
 	logerror("motherboard_w(%06x): %08x & %08x\n", offset, data, mem_mask);
+}
+
+void a3000_state::zorro_int2_w(int state)
+{
+	m_zorro_int2 = state;
+	update_int2();
+}
+
+void a3000_state::zorro_int6_w(int state)
+{
+	m_zorro_int6 = state;
+	update_int6();
+}
+
+void a3000_state::zorro_xrdy_w(int state)
+{
+	if (state == 0)
+	{
+		downcast<m68000_musashi_device &>(*m_maincpu).restart_this_instruction();
+		m_maincpu->suspend_until_trigger(1, true);
+	}
+	else if (m_maincpu->suspended(SUSPEND_REASON_TRIGGER))
+	{
+		m_maincpu->trigger(1);
+	}
+}
+
+uint32_t a3000_state::zorro_dma_r(offs_t offset, uint32_t mem_mask)
+{
+	return m_maincpu->space(AS_PROGRAM).read_dword_unaligned(offset, mem_mask);
+}
+
+void a3000_state::zorro_dma_w(offs_t offset, uint32_t data, uint32_t mem_mask)
+{
+	m_maincpu->space(AS_PROGRAM).write_dword_unaligned(offset, data, mem_mask);
 }
 
 void a500p_state::machine_reset()
@@ -1346,23 +1530,28 @@ void a4000_state::machine_start()
 	save_item(NAME(m_gary_timeout));
 	save_item(NAME(m_gary_toenb));
 	save_item(NAME(m_ide_interrupt));
+	save_item(NAME(m_zorro_int2));
+	save_item(NAME(m_zorro_int6));
+}
+
+void a4000_state::machine_reset()
+{
+	// base reset
+	amiga_state::machine_reset();
+
+	// reset zorro devices
+	m_zorro->busrst_w(0);
+	m_zorro->busrst_w(1);
 }
 
 bool a4000_state::int2_pending()
 {
-	return m_cia_0_irq || m_ide_interrupt;
+	return m_cia_0_irq || m_ide_interrupt || m_zorro_int2;
 }
 
-uint32_t a4000_state::scsi_r(offs_t offset, uint32_t mem_mask)
+bool a4000_state::int6_pending()
 {
-	uint32_t data = 0xffffffff;
-	logerror("scsi_r(%06x): %08x & %08x\n", offset, data, mem_mask);
-	return data;
-}
-
-void a4000_state::scsi_w(offs_t offset, uint32_t data, uint32_t mem_mask)
-{
-	logerror("scsi_w(%06x): %08x & %08x\n", offset, data, mem_mask);
+	return m_cia_1_irq || m_zorro_int6;
 }
 
 uint16_t a4000_state::ide_r(offs_t offset, uint16_t mem_mask)
@@ -1435,6 +1624,69 @@ void a4000_state::motherboard_w(offs_t offset, uint32_t data, uint32_t mem_mask)
 	}
 
 	logerror("motherboard_w(%06x): %08x & %08x\n", offset, data, mem_mask);
+}
+
+void a4000_state::zorro_int2_w(int state)
+{
+	m_zorro_int2 = state;
+	update_int2();
+}
+
+void a4000_state::zorro_int6_w(int state)
+{
+	m_zorro_int6 = state;
+	update_int6();
+}
+
+void a4000_state::zorro_xrdy_w(int state)
+{
+	if (state == 0)
+	{
+		downcast<m68000_musashi_device &>(*m_maincpu).restart_this_instruction();
+		m_maincpu->suspend_until_trigger(1, true);
+	}
+	else if (m_maincpu->suspended(SUSPEND_REASON_TRIGGER))
+	{
+		m_maincpu->trigger(1);
+	}
+}
+
+uint32_t a4000_state::zorro_dma_r(offs_t offset, uint32_t mem_mask)
+{
+	return m_maincpu->space(AS_PROGRAM).read_dword_unaligned(offset, mem_mask);
+}
+
+void a4000_state::zorro_dma_w(offs_t offset, uint32_t data, uint32_t mem_mask)
+{
+	m_maincpu->space(AS_PROGRAM).write_dword_unaligned(offset, data, mem_mask);
+}
+
+void a4000t_state::machine_start()
+{
+	a4000_state::machine_start();
+
+	save_item(NAME(m_scsi_interrupt));
+}
+
+bool a4000t_state::int2_pending()
+{
+	return a4000_state::int2_pending() || m_scsi_interrupt;
+}
+
+uint32_t a4000t_state::scsi_dma_r(offs_t offset, uint32_t mem_mask)
+{
+	return m_maincpu->space(AS_PROGRAM).read_dword_unaligned(offset, mem_mask);
+}
+
+void a4000t_state::scsi_dma_w(offs_t offset, uint32_t data, uint32_t mem_mask)
+{
+	m_maincpu->space(AS_PROGRAM).write_dword_unaligned(offset, data, mem_mask);
+}
+
+void a4000t_state::scsi_interrupt_w(int state)
+{
+	m_scsi_interrupt = state;
+	update_int2();
 }
 
 void cd32_state::akiko_int_w(int state)
@@ -1684,26 +1936,25 @@ void cdtv_state::cdtv_mem(address_map &map)
 	map(0xf80000, 0xffffff).rom().region("kickstart", 0);
 }
 
-void cdtv_state::cdtv_rc_mem(address_map &map)
-{
-	map(0x0800, 0x0fff).rom().region("rcmcu", 0);
-}
-
 void a3000_state::a3000_mem(address_map &map)
 {
 	map.unmap_value_high();
 	map(0x00000000, 0x001fffff).m(m_overlay, FUNC(address_map_bank_device::amap32));
+	map(0x00200000, 0x009fffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro2_mem_r), FUNC(zorro3_bus_device::zorro2_mem_w));
+	map(0x00a00000, 0x00b7ffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro2_io_exp_r), FUNC(zorro3_bus_device::zorro2_io_exp_w));
 	map(0x00b80000, 0x00bfffff).rw(FUNC(a3000_state::cia_r), FUNC(a3000_state::cia_w));
 	map(0x00c00000, 0x00cfffff).m(m_chipset, FUNC(address_map_bank_device::amap16));
-	map(0x00d00000, 0x00dbffff).noprw();
+	map(0x00d00000, 0x00dbffff).unmaprw();
 	map(0x00dc0000, 0x00dcffff).rw("rtc", FUNC(rp5c01_device::read), FUNC(rp5c01_device::write)).umask32(0x000000ff);
 	map(0x00dd0000, 0x00ddffff).rw(FUNC(a3000_state::scsi_r), FUNC(a3000_state::scsi_w));
 	map(0x00de0000, 0x00deffff).rw(FUNC(a3000_state::motherboard_r), FUNC(a3000_state::motherboard_w));
 	map(0x00df0000, 0x00dfffff).m(m_chipset, FUNC(address_map_bank_device::amap16));
-	map(0x00e80000, 0x00efffff).noprw(); // autoconfig space (installed by devices)
+	map(0x00e80000, 0x00efffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro2_io_r), FUNC(zorro3_bus_device::zorro2_io_w));
 	map(0x00f00000, 0x00f7ffff).noprw(); // cartridge space
 	map(0x00f80000, 0x00ffffff).rom().region("kickstart", 0);
 	map(0x07f00000, 0x07ffffff).ram(); // motherboard ram (up to 16mb), grows downward
+	map(0x10000000, 0x7fffffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro3_mem_r), FUNC(zorro3_bus_device::zorro3_mem_w));
+	map(0xff000000, 0xff00ffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro3_io_r), FUNC(zorro3_bus_device::zorro3_io_w));
 	map(0xfff80000, 0xffffffff).rom().region("kickstart", 0);
 }
 
@@ -1790,8 +2041,8 @@ void a4000_state::a4000_mem(address_map &map)
 {
 	map.unmap_value_high();
 	map(0x00000000, 0x001fffff).m(m_overlay, FUNC(address_map_bank_device::amap32));
-	map(0x00200000, 0x009fffff).unmaprw(); // zorro2 expansion
-	map(0x00a00000, 0x00b7ffff).unmaprw();
+	map(0x00200000, 0x009fffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro2_mem_r), FUNC(zorro3_bus_device::zorro2_mem_w));
+	map(0x00a00000, 0x00b7ffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro2_io_exp_r), FUNC(zorro3_bus_device::zorro2_io_exp_w));
 	map(0x00b80000, 0x00beffff).unmaprw();
 	map(0x00bf0000, 0x00bfffff).rw(FUNC(a4000_state::cia_r), FUNC(a4000_state::cia_w));
 	map(0x00c00000, 0x00cfffff).m(m_chipset, FUNC(address_map_bank_device::amap32));
@@ -1804,21 +2055,15 @@ void a4000_state::a4000_mem(address_map &map)
 	map(0x00de0000, 0x00deffff).rw(FUNC(a4000_state::motherboard_r), FUNC(a4000_state::motherboard_w));
 	map(0x00df0000, 0x00dfffff).m(m_chipset, FUNC(address_map_bank_device::amap32));
 	map(0x00e00000, 0x00e7ffff).nopw().r(FUNC(a4000_state::rom_mirror32_r));
-	map(0x00e80000, 0x00efffff).unmaprw(); // zorro2 autoconfig space (installed by devices)
+	map(0x00e80000, 0x00efffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro2_io_r), FUNC(zorro3_bus_device::zorro2_io_w));
 	map(0x00f00000, 0x00f7ffff).noprw(); // cartridge space
 	map(0x00f80000, 0x00ffffff).rom().region("kickstart", 0);
 	map(0x01000000, 0x017fffff).unmaprw(); // reserved (8 mb chip ram)
 	map(0x01800000, 0x06ffffff).unmaprw(); // reserved (motherboard fast-ram expansion)
 	map(0x07000000, 0x07ffffff).unmaprw(); // motherboard ram (installed in machine_start)
+	map(0x10000000, 0x7fffffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro3_mem_r), FUNC(zorro3_bus_device::zorro3_mem_w));
+	map(0xff000000, 0xff00ffff).rw(m_zorro, FUNC(zorro3_bus_device::zorro3_io_r), FUNC(zorro3_bus_device::zorro3_io_w));
 	map(0xfff80000, 0xffffffff).rom().region("kickstart", 0);
-}
-
-// 2MB chip RAM, 2 MB Fast-RAM, RTC and IDE
-void a4000_state::a400030_mem(address_map &map)
-{
-	map.unmap_value_high();
-	a4000_mem(map);
-	map(0x07000000, 0x07dfffff).noprw(); // Drop the first 2Mb
 }
 
 // 2MB chip RAM and CD-ROM
@@ -1835,11 +2080,11 @@ void cd32_state::cd32_mem(address_map &map)
 }
 
 // 2 MB chip RAM, IDE, RTC and SCSI
-void a4000_state::a4000t_mem(address_map &map)
+void a4000t_state::a4000t_mem(address_map &map)
 {
 	map.unmap_value_high();
 	a4000_mem(map);
-	map(0x00dd0000, 0x00dd0fff).rw(FUNC(a4000_state::scsi_r), FUNC(a4000_state::scsi_w));
+	map(0x00dd0040, 0x00dd007f).mirror(0x80).rw(m_ncr, FUNC(ncr53c710_device::read), FUNC(ncr53c710_device::write));
 }
 
 
@@ -1924,22 +2169,22 @@ static INPUT_PORTS_START( cdtv )
 	PORT_BIT(0x01, 0x01, IPT_OTHER) PORT_NAME("Front Panel Power") PORT_TOGGLE
 
 	PORT_START("frontpanel_kst0")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Play/Stop/Backward/Forward (KST0)")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Play/Pause")
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Reset")
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_UNUSED)
 
 	PORT_START("frontpanel_kst1")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Play/Stop/Backward/Forward (KST1)")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Stop")
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Volume Up")
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_UNUSED)
 
 	PORT_START("frontpanel_kst2")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Play/Stop/Backward/Forward (KST2)")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Next/Forward")
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Volume Down")
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_UNUSED)
 
 	PORT_START("frontpanel_kst3")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Play/Stop/Backward/Forward (KST3)")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel Previous/Backward")
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Front Panel TV/CD")
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_UNUSED)
 INPUT_PORTS_END
@@ -2121,8 +2366,10 @@ void a1000_state::a1000n(machine_config &config)
 	a1000(config);
 
 	m_maincpu->set_clock(amiga_state::CLK_7M_NTSC);
+
 	config.device_remove("screen");
 	ntsc_video(config);
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
@@ -2180,8 +2427,10 @@ void a2000_state::a2000n(machine_config &config)
 	a2000(config);
 
 	m_maincpu->set_clock(amiga_state::CLK_7M_NTSC);
+
 	config.device_remove("screen");
 	ntsc_video(config);
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
@@ -2222,8 +2471,10 @@ void a500_state::a500n(machine_config &config)
 	a500(config);
 
 	m_maincpu->set_clock(amiga_state::CLK_7M_NTSC);
+
 	config.device_remove("screen");
 	ntsc_video(config);
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
@@ -2240,22 +2491,40 @@ void cdtv_state::cdtv(machine_config &config)
 
 	amiga_base(config);
 
+	// disable floppy as default
+	// TODO: breaks software loading
+#if 0
+	subdevice<floppy_connector>("fdc:0")->set_default_option(nullptr);
+#endif
+
 	// keyboard
+	INPUT_MERGER_ALL_HIGH(config, m_kbclock);
+	m_kbclock->output_handler().set("cia_0", FUNC(mos8520_device::cnt_w));
+	m_kbclock->output_handler().append("kbrst", FUNC(a1000_kbreset_device::kbclk_w));
+
+	INPUT_MERGER_ALL_HIGH(config, m_kbdata);
+	m_kbdata->output_handler().set("cia_0", FUNC(mos8520_device::sp_w));
+
 	auto &kbd(AMIGA_KEYBOARD_INTERFACE(config, "kbd", amiga_keyboard_devices, "a2000_us"));
-	kbd.kclk_handler().set("cia_0", FUNC(mos8520_device::cnt_w));
-	kbd.kclk_handler().append("kbrst", FUNC(a1000_kbreset_device::kbclk_w));
-	kbd.kdat_handler().set("cia_0", FUNC(mos8520_device::sp_w));
+	kbd.kclk_handler().set(m_kbclock, FUNC(input_merger_device::in_w<0>));
+	kbd.kdat_handler().set(m_kbdata, FUNC(input_merger_device::in_w<0>));
+
 	A1000_KBRESET(config, "kbrst")
 			.set_delays(attotime::from_usec(11238), attotime::from_usec(7432), attotime::from_usec(27539))
 			.kbrst_cb().set(FUNC(a1000_state::kbreset_w));
 
 	// remote control input converter
-	m6502_device &u75(M6502(config, "u75", XTAL(3'000'000)));
-	u75.set_addrmap(AS_PROGRAM, &cdtv_state::cdtv_rc_mem);
-	u75.set_disable();
+	M6500_1(config, m_rccpu, 3_MHz_XTAL);
+	m_rccpu->pa_in_cb().set(FUNC(cdtv_state::rccpu_porta_r));
+	m_rccpu->pa_out_cb().set(FUNC(cdtv_state::rccpu_porta_w));
+	m_rccpu->pb_in_cb().set(FUNC(cdtv_state::rccpu_portb_r));
+	m_rccpu->pb_out_cb().set(FUNC(cdtv_state::rccpu_portb_w));
+	// port c: joyport 1
+	// port d: joyport 2
 
 	// lcd controller
 	LC6554(config, m_lcdcpu, 4_MHz_XTAL); // U62
+	m_lcdcpu->pa_in_cb().set(FUNC(cdtv_state::lcdcpu_cpcp_r));
 	m_lcdcpu->pb_in_cb().set(FUNC(cdtv_state::lcdcpu_frontpanel_key_r));
 	m_lcdcpu->pc_out_cb().set(FUNC(cdtv_state::lcdcpu_frontpanel_select_w));
 	m_lcdcpu->pd_in_cb().set(FUNC(cdtv_state::lcdcpu_rtc_data_r));
@@ -2272,6 +2541,8 @@ void cdtv_state::cdtv(machine_config &config)
 	m_lcdcpu->pn_out_cb().set(FUNC(cdtv_state::lcdcpu_portn_w));
 	m_lcdcpu->po_out_cb().set(FUNC(cdtv_state::lcdcpu_porto_w));
 	m_lcdcpu->pp_out_cb().set(FUNC(cdtv_state::lcdcpu_portp_w));
+	m_lcdcpu->so_out_cb().set(m_cdrom, FUNC(cr511b_device::sdata_w));
+	m_lcdcpu->sck_out_cb().set(m_cdrom, FUNC(cr511b_device::sck_w));
 
 	PWM_DISPLAY(config, m_vfd_display);
 	m_vfd_display->set_size(8, 8);
@@ -2307,12 +2578,15 @@ void cdtv_state::cdtv(machine_config &config)
 	CR511B(config, m_cdrom);
 	m_cdrom->add_route(0, "speaker", 1.0, 0);
 	m_cdrom->add_route(1, "speaker", 1.0, 1);
-	m_cdrom->scor_cb().set(m_tpi, FUNC(tpi6525_device::i1_w)).invert();
-	m_cdrom->stch_cb().set(m_tpi, FUNC(tpi6525_device::i2_w)).invert();
-	m_cdrom->sten_cb().set(m_tpi, FUNC(tpi6525_device::i3_w));
+	m_cdrom->sbcp_cb().set(m_tpi, FUNC(tpi6525_device::pc0_w)).invert();
+	m_cdrom->scor_cb().set(m_tpi, FUNC(tpi6525_device::pc1_w)).invert();
+	m_cdrom->stch_cb().set(m_tpi, FUNC(tpi6525_device::pc2_w)).invert();
+	m_cdrom->sten_cb().set(m_tpi, FUNC(tpi6525_device::pc3_w));
 	m_cdrom->sten_cb().append(FUNC(cdtv_state::sten_w));
-	m_cdrom->drq_cb().set(m_tpi, FUNC(tpi6525_device::i4_w));
+	m_cdrom->drq_cb().set(m_tpi, FUNC(tpi6525_device::pc4_w));
 	m_cdrom->drq_cb().append(FUNC(cdtv_state::drq_w));
+	m_cdrom->subcode_data_cb().set(m_tpi, FUNC(tpi6525_device::pa_w));
+	m_cdrom->sdata_cb().set(m_lcdcpu, FUNC(lc6554_cpu_device::si_w));
 
 	SOFTWARE_LIST(config, "cd_list").set_original("cdtv");
 
@@ -2322,9 +2596,12 @@ void cdtv_state::cdtv(machine_config &config)
 void cdtv_state::cdtvn(machine_config &config)
 {
 	cdtv(config);
+
 	m_maincpu->set_clock(amiga_state::CLK_7M_NTSC);
+
 	config.device_remove("screen");
 	ntsc_video(config);
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
@@ -2354,7 +2631,18 @@ void a3000_state::a3000(machine_config &config)
 	// real-time clock
 	RP5C01(config, "rtc", XTAL(32'768));
 
-	// TODO: zorro3 slots, super dmac, scsi
+	// TODO: super dmac, scsi
+
+	ZORRO3_BUS(config, m_zorro, amiga_state::CLK_7M_PAL);
+	m_zorro->dma_read_callback().set(FUNC(a3000_state::zorro_dma_r));
+	m_zorro->dma_write_callback().set(FUNC(a3000_state::zorro_dma_w));
+	m_zorro->int2_handler().set(FUNC(a3000_state::zorro_int2_w));
+	m_zorro->int6_handler().set(FUNC(a3000_state::zorro_int6_w));
+	m_zorro->xrdy_handler().set(FUNC(a3000_state::zorro_xrdy_w));
+	ZORRO3_SLOT(config, "zorro3:1", zorro3_cards, nullptr);
+	ZORRO3_SLOT(config, "zorro3:2", zorro3_cards, nullptr);
+	ZORRO3_SLOT(config, "zorro3:3", zorro3_cards, nullptr);
+	ZORRO3_SLOT(config, "zorro3:4", zorro3_cards, nullptr);
 
 	// software
 	SOFTWARE_LIST(config, "amix_list").set_original("amiga_amix");
@@ -2364,11 +2652,15 @@ void a3000_state::a3000(machine_config &config)
 void a3000_state::a3000n(machine_config &config)
 {
 	a3000(config);
+
 	config.device_remove("screen");
 	ntsc_video(config);
+
+	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	m_fdc->set_clock(amiga_state::CLK_7M_NTSC);
+	m_zorro->set_clock(amiga_state::CLK_7M_NTSC);
 }
 
 void a500p_state::a500p(machine_config &config)
@@ -2409,9 +2701,12 @@ void a500p_state::a500p(machine_config &config)
 void a500p_state::a500pn(machine_config &config)
 {
 	a500p(config);
+
 	m_maincpu->set_clock(amiga_state::CLK_7M_NTSC);
+
 	config.device_remove("screen");
 	ntsc_video(config);
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
@@ -2466,10 +2761,13 @@ void a600_state::a600(machine_config &config)
 void a600_state::a600n(machine_config &config)
 {
 	a600(config);
+
 	m_maincpu->set_clock(amiga_state::CLK_7M_NTSC);
 	subdevice<gayle_device>("gayle")->set_clock(amiga_state::CLK_28M_NTSC / 2);
+
 	config.device_remove("screen");
 	ntsc_video(config);
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
@@ -2535,11 +2833,13 @@ void a1200_state::a1200(machine_config &config)
 void a1200_state::a1200n(machine_config &config)
 {
 	a1200(config);
+
 	m_maincpu->set_clock(amiga_state::CLK_28M_NTSC / 2);
 	subdevice<gayle_device>("gayle")->set_clock(amiga_state::CLK_28M_NTSC / 2);
+
 	config.device_remove("screen");
 	ntsc_video(config);
-	m_screen->set_screen_update(FUNC(amiga_state::screen_update));
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
@@ -2577,10 +2877,19 @@ void a4000_state::a4000(machine_config &config)
 	RP5C01(config, "rtc", XTAL(32'768));
 
 	// ide
-	ata_interface_device &ata(ATA_INTERFACE(config, "ata").options(ata_devices, "hdd", nullptr, false));
-	ata.irq_handler().set(FUNC(a4000_state::ide_interrupt_w));
+	ATA_INTERFACE(config, m_ata).options(ata_devices, "hdd", nullptr, false);
+	m_ata->irq_handler().set(FUNC(a4000_state::ide_interrupt_w));
 
-	// TODO: zorro3
+	ZORRO3_BUS(config, m_zorro, amiga_state::CLK_7M_PAL);
+	m_zorro->dma_read_callback().set(FUNC(a4000_state::zorro_dma_r));
+	m_zorro->dma_write_callback().set(FUNC(a4000_state::zorro_dma_w));
+	m_zorro->int2_handler().set(FUNC(a4000_state::zorro_int2_w));
+	m_zorro->int6_handler().set(FUNC(a4000_state::zorro_int6_w));
+	m_zorro->xrdy_handler().set(FUNC(a4000_state::zorro_xrdy_w));
+	ZORRO3_SLOT(config, "zorro3:1", zorro3_cards, nullptr);
+	ZORRO3_SLOT(config, "zorro3:2", zorro3_cards, nullptr);
+	ZORRO3_SLOT(config, "zorro3:3", zorro3_cards, nullptr);
+	ZORRO3_SLOT(config, "zorro3:4", zorro3_cards, nullptr);
 
 	// software
 	SOFTWARE_LIST(config, "aga_list").set_original("amigaaga_flop");
@@ -2594,32 +2903,39 @@ void a4000_state::a4000n(machine_config &config)
 
 	config.device_remove("screen");
 	ntsc_video(config);
-	m_screen->set_screen_update(FUNC(amiga_state::screen_update));
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	m_fdc->set_clock(amiga_state::CLK_7M_NTSC);
+	m_zorro->set_clock(amiga_state::CLK_7M_NTSC);
 }
 
-void a4000_state::a400030(machine_config &config)
+void a4000_state::a4000_30(machine_config &config)
 {
 	a4000(config);
-	// main cpu
+
 	M68EC030(config.replace(), m_maincpu, XTAL(50'000'000) / 2);
-	m_maincpu->set_addrmap(AS_PROGRAM, &a4000_state::a400030_mem);
+	m_maincpu->set_addrmap(AS_PROGRAM, &a4000_state::a4000_mem);
 	m_maincpu->set_cpu_space(AS_PROGRAM);
+	m_maincpu->reset_cb().set(FUNC(amiga_state::m68k_reset));
+
+	m_fastram->set_default_size("2M");
+	m_fastram->set_extra_options("1M,3M,4M,8M,12M,16M");
 }
 
-void a4000_state::a400030n(machine_config &config)
+void a4000_state::a4000_30n(machine_config &config)
 {
-	a400030(config);
+	a4000_30(config);
+
 	config.device_remove("screen");
 	ntsc_video(config);
-	m_screen->set_screen_update(FUNC(amiga_state::screen_update));
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	m_fdc->set_clock(amiga_state::CLK_7M_NTSC);
+	m_zorro->set_clock(amiga_state::CLK_7M_NTSC);
 }
 
 void cd32_state::cd32(machine_config &config)
@@ -2665,37 +2981,60 @@ void cd32_state::cd32n(machine_config &config)
 	cd32(config);
 
 	m_maincpu->set_clock(amiga_state::CLK_28M_NTSC / 2);
+
 	config.device_remove("screen");
 	ntsc_video(config);
-	m_screen->set_screen_update(FUNC(amiga_state::screen_update));
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	m_fdc->set_clock(amiga_state::CLK_7M_NTSC);
 }
 
-void a4000_state::a4000t(machine_config &config)
+void a4000t_state::a4000t(machine_config &config)
 {
 	a4000(config);
-	// main cpu
+
 	M68040(config.replace(), m_maincpu, XTAL(50'000'000) / 2);
-	m_maincpu->set_addrmap(AS_PROGRAM, &a4000_state::a4000t_mem);
+	m_maincpu->set_addrmap(AS_PROGRAM, &a4000t_state::a4000t_mem);
 	m_maincpu->set_cpu_space(AS_PROGRAM);
+	m_maincpu->reset_cb().set(FUNC(amiga_state::m68k_reset));
 
-	// TODO: zorro3, scsi, super dmac
+	// no ata devices by default
+	m_ata->options(ata_devices, nullptr, nullptr, false);
+
+	NSCSI_BUS(config, m_scsi);
+	NSCSI_CONNECTOR(config, "scsi:0", default_scsi_devices, "harddisk");
+	NSCSI_CONNECTOR(config, "scsi:1", default_scsi_devices, nullptr);
+	NSCSI_CONNECTOR(config, "scsi:2", default_scsi_devices, nullptr);
+	NSCSI_CONNECTOR(config, "scsi:3", default_scsi_devices, nullptr);
+	NSCSI_CONNECTOR(config, "scsi:4", default_scsi_devices, nullptr);
+	NSCSI_CONNECTOR(config, "scsi:5", default_scsi_devices, nullptr);
+	NSCSI_CONNECTOR(config, "scsi:6", default_scsi_devices, nullptr);
+	m_scsi->set_external_device(7, m_ncr);
+
+	NCR53C710(config, m_ncr, XTAL(50'000'000));
+	m_ncr->irq_handler().set(FUNC(a4000t_state::scsi_interrupt_w));
+	m_ncr->big_lit_handler().set_constant(1);
+	m_ncr->host_read().set(FUNC(a4000t_state::scsi_dma_r));
+	m_ncr->host_write().set(FUNC(a4000t_state::scsi_dma_w));
+
+	// one additional zorro slot
+	ZORRO3_SLOT(config, "zorro3:5", zorro3_cards, nullptr);
 }
 
-void a4000_state::a4000tn(machine_config &config)
+void a4000t_state::a4000tn(machine_config &config)
 {
-	a4000(config);
+	a4000t(config);
 
 	config.device_remove("screen");
 	ntsc_video(config);
-	m_screen->set_screen_update(FUNC(amiga_state::screen_update));
+
 	m_paula->set_clock(amiga_state::CLK_C1_NTSC);
 	m_cia_0->set_clock(amiga_state::CLK_E_NTSC);
 	m_cia_1->set_clock(amiga_state::CLK_E_NTSC);
 	m_fdc->set_clock(amiga_state::CLK_7M_NTSC);
+	m_zorro->set_clock(amiga_state::CLK_7M_NTSC);
 }
 
 
@@ -2800,9 +3139,10 @@ ROM_START( cdtv )
 	ROM_COPY("kickstart", 0x00000, 0x40000, 0x40000)
 
 	// remote control input converter, mos 6500/1 mcu
-	ROM_REGION(0x1000, "rcmcu", 0)
+	ROM_REGION(0x1000, "rccpu", 0)
 	ROM_LOAD("252609-02.u75", 0x000, 0x800, NO_DUMP) // internal ROM of the final version hasn't been dumped yet
 	ROM_LOAD("v1.3-1990-10-01", 0x0000, 0x1000, CRC(3c7cb7bb) SHA1(958e799897ac044fcc0f0c74c3cb5d83f3edd0c7)) // this was dumped from a pre-production CD-1000 player which had the program in external EPROM
+	ROM_COPY("rccpu", 0x0800, 0x0000, 0x0800) // the second half contains the program code
 
 	// lcd controller, sanyo lc6554h
 	ROM_REGION(0x2000, "lcdcpu", 0)
@@ -2941,9 +3281,9 @@ ROM_START( a4000 )
 #endif
 ROM_END
 
-#define rom_a4000n    rom_a4000
-#define rom_a400030   rom_a4000
-#define rom_a400030n  rom_a4000
+#define rom_a4000n     rom_a4000
+#define rom_a4000_30   rom_a4000
+#define rom_a4000_30n  rom_a4000
 
 // Amiga 4000T
 //
@@ -2981,31 +3321,31 @@ ROM_END
 //**************************************************************************
 
 // OCS Chipset
-COMP( 1985, a1000,    0,      0, a1000,    amiga, a1000_state, init_pal,  "Commodore", "Amiga 1000 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1985, a1000n,   a1000,  0, a1000n,   amiga, a1000_state, init_ntsc, "Commodore", "Amiga 1000 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1987, a2000,    0,      0, a2000,    amiga, a2000_state, init_pal,  "Commodore", "Amiga 2000 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1987, a2000n,   a2000,  0, a2000n,   amiga, a2000_state, init_ntsc, "Commodore", "Amiga 2000 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1987, a500,     0,      0, a500,     amiga, a500_state,  init_pal,  "Commodore", "Amiga 500 (PAL)",       MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1987, a500n,    a500,   0, a500n,    amiga, a500_state,  init_ntsc, "Commodore", "Amiga 500 (NTSC)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1990, cdtv,     0,      0, cdtv,     cdtv,  cdtv_state,  init_pal,  "Commodore", "CDTV (PAL)",            MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1990, cdtvn,    cdtv,   0, cdtvn,    cdtv,  cdtv_state,  init_ntsc, "Commodore", "CDTV (NTSC)",           MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1985, a1000,     0,      0, a1000,     amiga, a1000_state,  init_pal,  "Commodore", "Amiga 1000 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1985, a1000n,    a1000,  0, a1000n,    amiga, a1000_state,  init_ntsc, "Commodore", "Amiga 1000 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1987, a2000,     0,      0, a2000,     amiga, a2000_state,  init_pal,  "Commodore", "Amiga 2000 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1987, a2000n,    a2000,  0, a2000n,    amiga, a2000_state,  init_ntsc, "Commodore", "Amiga 2000 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1987, a500,      0,      0, a500,      amiga, a500_state,   init_pal,  "Commodore", "Amiga 500 (PAL)",       MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1987, a500n,     a500,   0, a500n,     amiga, a500_state,   init_ntsc, "Commodore", "Amiga 500 (NTSC)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1990, cdtv,      0,      0, cdtv,      cdtv,  cdtv_state,   init_pal,  "Commodore", "CDTV (PAL)",            MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1990, cdtvn,     cdtv,   0, cdtvn,     cdtv,  cdtv_state,   init_ntsc, "Commodore", "CDTV (NTSC)",           MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
 
 // ECS Chipset
-COMP( 1990, a3000,    0,      0, a3000,    amiga, a3000_state, init_pal,  "Commodore", "Amiga 3000 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1990, a3000n,   a3000,  0, a3000n,   amiga, a3000_state, init_ntsc, "Commodore", "Amiga 3000 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1992, a500p,    0,      0, a500p,    amiga, a500p_state, init_pal,  "Commodore", "Amiga 500 Plus (PAL)",  MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1992, a500pn,   a500p,  0, a500pn,   amiga, a500p_state, init_ntsc, "Commodore", "Amiga 500 Plus (NTSC)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1992, a600,     0,      0, a600,     amiga, a600_state,  init_pal,  "Commodore", "Amiga 600 (PAL)",       MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1992, a600n,    a600,   0, a600n,    amiga, a600_state,  init_ntsc, "Commodore", "Amiga 600 (NTSC)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1990, a3000,     0,      0, a3000,     amiga, a3000_state,  init_pal,  "Commodore", "Amiga 3000 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1990, a3000n,    a3000,  0, a3000n,    amiga, a3000_state,  init_ntsc, "Commodore", "Amiga 3000 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1992, a500p,     0,      0, a500p,     amiga, a500p_state,  init_pal,  "Commodore", "Amiga 500 Plus (PAL)",  MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1992, a500pn,    a500p,  0, a500pn,    amiga, a500p_state,  init_ntsc, "Commodore", "Amiga 500 Plus (NTSC)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1992, a600,      0,      0, a600,      amiga, a600_state,   init_pal,  "Commodore", "Amiga 600 (PAL)",       MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1992, a600n,     a600,   0, a600n,     amiga, a600_state,   init_ntsc, "Commodore", "Amiga 600 (NTSC)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
 
 // AGA Chipset
-COMP( 1992, a1200,    0,      0, a1200,    amiga, a1200_state, init_pal,  "Commodore", "Amiga 1200 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1992, a1200n,   a1200,  0, a1200n,   amiga, a1200_state, init_ntsc, "Commodore", "Amiga 1200 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1992, a4000,    0,      0, a4000,    amiga, a4000_state, init_pal,  "Commodore", "Amiga 4000/040 (PAL)",  MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1992, a4000n,   a4000,  0, a4000n,   amiga, a4000_state, init_ntsc, "Commodore", "Amiga 4000/040 (NTSC)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1993, a400030,  a4000,  0, a400030,  amiga, a4000_state, init_pal,  "Commodore", "Amiga 4000/030 (PAL)",  MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1993, a400030n, a4000,  0, a400030n, amiga, a4000_state, init_ntsc, "Commodore", "Amiga 4000/030 (NTSC)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1993, cd32,     0,      0, cd32,     cd32,  cd32_state,  init_pal,  "Commodore", "Amiga CD32 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1993, cd32n,    cd32,   0, cd32n,    cd32,  cd32_state,  init_ntsc, "Commodore", "Amiga CD32 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1994, a4000t,   0,      0, a4000t,   amiga, a4000_state, init_pal,  "Commodore", "Amiga 4000T (PAL)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
-COMP( 1994, a4000tn,  a4000t, 0, a4000tn,  amiga, a4000_state, init_ntsc, "Commodore", "Amiga 4000T (NTSC)",    MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1992, a1200,     0,      0, a1200,     amiga, a1200_state,  init_pal,  "Commodore", "Amiga 1200 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1992, a1200n,    a1200,  0, a1200n,    amiga, a1200_state,  init_ntsc, "Commodore", "Amiga 1200 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1992, a4000,     0,      0, a4000,     amiga, a4000_state,  init_pal,  "Commodore", "Amiga 4000/040 (PAL)",  MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1992, a4000n,    a4000,  0, a4000n,    amiga, a4000_state,  init_ntsc, "Commodore", "Amiga 4000/040 (NTSC)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1993, a4000_30,  a4000,  0, a4000_30,  amiga, a4000_state,  init_pal,  "Commodore", "Amiga 4000/030 (PAL)",  MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1993, a4000_30n, a4000,  0, a4000_30n, amiga, a4000_state,  init_ntsc, "Commodore", "Amiga 4000/030 (NTSC)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1993, cd32,      0,      0, cd32,      cd32,  cd32_state,   init_pal,  "Commodore", "Amiga CD32 (PAL)",      MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1993, cd32n,     cd32,   0, cd32n,     cd32,  cd32_state,   init_ntsc, "Commodore", "Amiga CD32 (NTSC)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1994, a4000t,    0,      0, a4000t,    amiga, a4000t_state, init_pal,  "Commodore", "Amiga 4000T (PAL)",     MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )
+COMP( 1994, a4000tn,   a4000t, 0, a4000tn,   amiga, a4000t_state, init_ntsc, "Commodore", "Amiga 4000T (NTSC)",    MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS )

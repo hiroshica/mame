@@ -169,6 +169,7 @@ enum
 #define PPCDRC_ACCURATE_SINGLES       0x0004        // do excessive rounding to make single-precision results "accurate"
 #define PPCDRC_FULL_CACHE_FLUSH       0x0008        // completely flush the DRC cache on ICBI.  Should never be necessary now.
 #define PPCDRC_STRICT_601_SELF_MODIFY 0x0010        // check for self-modifying code on 601 in the write handler (fairly large performance impact & does not work with RAM bypass)
+#define PPCDRC_MACOS_CACHE_HACK       0x0020        // HACK for Mac OS relying on data cache behavior; see ppccom_dcbz_check() for details
 
 // common sets of options
 #define PPCDRC_COMPATIBLE_OPTIONS   (PPCDRC_STRICT_VERIFY | PPCDRC_FLUSH_PC | PPCDRC_ACCURATE_SINGLES)
@@ -231,6 +232,7 @@ public:
 
 	void set_serial_clock(uint32_t serial_clock) { c_serial_clock = serial_clock; }
 	void set_serial_clock(const XTAL &xtal) { set_serial_clock(xtal.value()); }
+	void set_tb_divisor(uint32_t divisor) { m_tb_divisor = divisor; }
 
 	void ppc_set_dcstore_callback(write32sm_delegate callback);
 
@@ -253,6 +255,7 @@ public:
 	void ppccom_tlb_fill();
 	void ppccom_update_fprf();
 	void ppccom_dcstore_callback();
+	void ppccom_dcbz_check();
 	void ppccom_execute_tlbie();
 	void ppccom_execute_tlbia();
 	void ppccom_execute_tlbl();
