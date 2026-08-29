@@ -54,6 +54,35 @@ void arm7_cpu_device::SwitchMode(uint32_t cpsr_mode_val)
    ROR >32   = Same result as ROR n-32 until amount in range of 1-32 then follow rules
 */
 
+// 26-bit modes: write the PSR bits of a value into R15 and the CPSR.  Used by the S-bit form of a data-processing
+// instruction with Rd = R15 (MOVS pc, r14 etc.), the P form of the compares (TSTP/TEQP/CMPP/CMNP, which write only the
+// PSR) and LDM ^ with R15 in the list.  In user mode the I, F and mode bits are protected and only N, Z, C and V are
+// taken from the value (ARM2/ARM3 datasheets, "PSR protection"; the ARM6/ARM7 26-bit modes behave the same way).
+void arm7_cpu_device::write_r15_psr26(uint32_t value, bool write_pc)
+{
+	uint32_t psr = value & 0xFC000003;
+	if (GET_MODE == eARM7_MODE_USER)
+		psr = (psr & 0xF0000000) | ((GET_CPSR & (I_MASK | F_MASK)) << (26 - 6)) | (GET_CPSR & 3);   // the CPSR, not R15: LDM has already loaded R15
+	R15 = ((write_pc ? value : R15) & 0x03FFFFFC) | psr;
+	uint32_t const cpsr = (GET_CPSR & 0x0FFFFF20) | (psr & 0xF0000000) /* N Z C V */ | ((psr & 0x0C000000) >> (26 - 6)) /* I F */ | (psr & 0x00000003) /* M1 M0 */;
+	set_cpsr(cpsr);
+	SwitchMode(cpsr & 3);
+}
+
+// LDM with writeback and the base register in the list: the loaded value wins ("A LDM will always overwrite the
+// updated base if the base is in the list").  Not so for a user bank transfer (LDM ^ without R15) from a privileged
+// mode when the base is one of the banked registers: the list loads the USER copy, the base is a different physical
+// register and is written back as usual.  RISC OS's FPEmulator returns with LDMFD R13!,{R0-R14}^ / LDMFD R13!,{R15}^
+// from SVC mode and needs the second load to come from the updated stack pointer.
+bool arm7_cpu_device::ldm_loads_base(uint32_t insn, uint32_t rb) const
+{
+	if (!BIT(insn, rb))
+		return false;
+	if ((insn & INSN_BDT_S) && !(insn & 0x8000) && GET_MODE != eARM7_MODE_USER && GET_MODE != eARM7_MODE_SYS)
+		return (GET_MODE == eARM7_MODE_FIQ) ? (rb < 8) : (rb < 13);
+	return true;
+}
+
 uint32_t arm7_cpu_device::decodeShift(uint32_t insn, uint32_t *pCarry)
 {
 	uint32_t k  = (insn & INSN_OP2_SHIFT) >> INSN_OP2_SHIFT_SHIFT;  // Bits 11-7
@@ -305,7 +334,7 @@ int arm7_cpu_device::storeDec(uint32_t pat, uint32_t rbv, int mode)
 void arm7_cpu_device::HandleCoProcDO(uint32_t insn)
 {
 	// This instruction simply instructs the co-processor to do something, no data is returned to ARM7 core
-	arm7_do_callback(0);    // simply pass entire opcode to callback - since data format is actually dependent on co-proc implementation
+	arm7_do_callback(insn); // simply pass entire opcode to callback - since data format is actually dependent on co-proc implementation
 }
 
 // Co-Processor Register Transfer - To/From Arm to Co-Proc
@@ -430,6 +459,11 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 
 	/* Calculate Rn, accounting for PC */
 	rn = (insn & INSN_RN) >> INSN_RN_SHIFT;
+	rd = (insn & INSN_RD) >> INSN_RD_SHIFT;
+	bool const is_load = (insn & INSN_SDT_L) != 0;
+
+	// A store reads its data before the base write-back, so STR Rn,[Rn,#off]! stores the original Rn.
+	uint32_t const store_value = is_load ? 0 : ((rd == eR15) ? (R15 + 12) : GetRegister(rd));
 
 	if (insn & INSN_SDT_P)
 	{
@@ -452,7 +486,10 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 		if (insn & INSN_SDT_W)
 		{
 			rnv_old = GetRegister(rn);
-			SetRegister(rn, rnv);
+			if (rn == eR15 && !MODE32)
+				write_r15_psr26(rnv, true);   // R15 as the base: the write-back also sets the PSR (the A680 boot ROM does LDR R0,[R15],#0)
+			else
+				SetRegister(rn, rnv);
 
 	// check writeback???
 		}
@@ -478,8 +515,6 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 	}
 
 	/* Do the transfer */
-	rd = (insn & INSN_RD) >> INSN_RD_SHIFT;
-	bool const is_load = (insn & INSN_SDT_L) != 0;
 	if (is_load)
 	{
 		/* Load */
@@ -501,7 +536,12 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 					if (MODE32)
 						R15 = data - 4;
 					else
+					{
+						// Data East DE156: an unaligned target resumes at the next word boundary (World Cup Volleyball '95)
+						if (m_ldr_pc_round_up && (data & 3))
+							data += 4;
 						R15 = (R15 & ~0x03FFFFFC) /* N Z C V I F M1 M0 */ | ((data - 4) & 0x03FFFFFC);
+					}
 					// LDR, PC takes 2S + 2N + 1I (5 total cycles)
 					ARM7_ICOUNT -= 2;
 					if ((data & 1) && m_archRev >= 5)
@@ -527,7 +567,7 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 				LOGMASKED(LOG_OPS, "Wrote R15 in byte mode\n");
 #endif
 
-			WRITE8(rnv, (uint8_t) GetRegister(rd) & 0xffu);
+			WRITE8(rnv, uint8_t(store_value));
 		}
 		else
 		{
@@ -536,8 +576,7 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 				LOGMASKED(LOG_OPS, "Wrote R15 in 32bit mode\n");
 #endif
 
-			//WRITE32(rnv, rd == eR15 ? R15 + 8 : GetRegister(rd));
-			WRITE32(rnv, rd == eR15 ? R15 + 8 + 4 : GetRegister(rd)); // manual says STR rd = PC, +12
+			WRITE32(rnv, store_value);
 		}
 		// Store takes only 2 N Cycles, so add + 1
 		ARM7_ICOUNT += 1;
@@ -551,7 +590,10 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 			// handler has to undo it.
 			if (!(insn & INSN_SDT_P))
 			{
-				SetRegister(rn, (insn & INSN_SDT_U) ? (rnv + off) : (rnv - off));
+				if (rn == eR15 && !MODE32)
+					write_r15_psr26((insn & INSN_SDT_U) ? (rnv + off) : (rnv - off), true);
+				else
+					SetRegister(rn, (insn & INSN_SDT_U) ? (rnv + off) : (rnv - off));
 			}
 		}
 		else if ((insn & INSN_SDT_P) && (insn & INSN_SDT_W))
@@ -574,7 +616,10 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 				if ((insn & INSN_SDT_W) != 0)
 					LOGMASKED(LOG_OPS, "%08x:  RegisterWritebackIncrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0);
 
-				SetRegister(rn, (rnv + off));
+				if (rn == eR15 && !MODE32)
+					write_r15_psr26(rnv + off, true);   // R15 as the base: the write-back also sets the PSR (the A680 boot ROM does LDR R0,[R15],#0)
+				else
+					SetRegister(rn, (rnv + off));
 			}
 		}
 		else
@@ -583,7 +628,10 @@ void arm7_cpu_device::HandleMemSingle(uint32_t insn)
 				SetRegister(rn, GetRegister(rd));
 			}
 			else {
-				SetRegister(rn, (rnv - off));
+				if (rn == eR15 && !MODE32)
+					write_r15_psr26(rnv - off, true);   // R15 as the base: the write-back also sets the PSR (the A680 boot ROM does LDR R0,[R15],#0)
+				else
+					SetRegister(rn, (rnv - off));
 
 				if ((insn & INSN_SDT_W) != 0)
 					LOGMASKED(LOG_OPS, "%08x:  RegisterWritebackDecrement %d %d %d\n", R15, (insn & INSN_SDT_P) != 0, (insn & INSN_SDT_W) != 0, (insn & INSN_SDT_U) != 0);
@@ -612,6 +660,11 @@ void arm7_cpu_device::HandleHalfWordDT(uint32_t insn)
 
 	/* Calculate Rn, accounting for PC */
 	rn = (insn & INSN_RN) >> INSN_RN_SHIFT;
+	rd = (insn & INSN_RD) >> INSN_RD_SHIFT;
+	bool const is_load = (insn & INSN_SDT_L) || ((insn & 0x60) == 0x40);   // L bit or LDRD
+
+	const uint32_t store_value = is_load ? 0 : ((rd == eR15) ? (R15 + 12) : GetRegister(rd));
+	const uint32_t store_value_hi = (is_load || (rd >= eR15)) ? 0 : GetRegister(rd + 1);   // STRD
 
 	if (insn & INSN_SDT_P)
 	{
@@ -651,9 +704,6 @@ void arm7_cpu_device::HandleHalfWordDT(uint32_t insn)
 	}
 
 	/* Do the transfer */
-	rd = (insn & INSN_RD) >> INSN_RD_SHIFT;
-	bool const is_load = (insn & INSN_SDT_L) || ((insn & 0x60) == 0x40);   // L bit or LDRD
-
 	/* Load */
 	if (insn & INSN_SDT_L)
 	{
@@ -782,17 +832,16 @@ void arm7_cpu_device::HandleHalfWordDT(uint32_t insn)
 				return;
 			}
 
-			WRITE32(rnv & ~3, GetRegister(rd));
+			WRITE32(rnv & ~3, store_value);
 			if (!m_pendingAbtD)
 			{
-				WRITE32((rnv & ~3) + 4, GetRegister(rd+1));
+				WRITE32((rnv & ~3) + 4, store_value_hi);
 			}
 			R15 += 4;
 		}
 		else
 		{
-			// WRITE16(rnv, rd == eR15 ? R15 + 8 : GetRegister(rd));
-			WRITE16(rnv, rd == eR15 ? R15 + 8 + 4 : GetRegister(rd)); // manual says STR RD=PC, +12 of address
+			WRITE16(rnv, store_value);   // STRH R15 stores PC+12
 
 			// if R15 is not increased then e.g. "STRH R10, [R15,#$10]" will be executed over and over again
 			R15 += 4;
@@ -1032,8 +1081,11 @@ void arm7_cpu_device::HandleALU(uint32_t insn)
 		if (!(insn & INSN_S))
 			sc = 0;
 
-		// extra cycle (register specified shift)
-		ARM7_ICOUNT -= 1;
+		// extra cycle (register specified shift).  Only a shift amount taken from a register costs the I cycle
+		// (ARM2 and ARM7TDMI datasheets alike); charging it for every register operand is a long-standing
+		// over-count that is kept for the ARM7+ types for now, so that no ARM7 machine changes timing here
+		if ((insn & 0x10) || m_archRev >= 3)
+			ARM7_ICOUNT -= 1;
 	}
 
 	// LD TODO this comment is wrong
@@ -1170,11 +1222,8 @@ void arm7_cpu_device::HandleALU(uint32_t insn)
 				}
 				else
 				{
-					uint32_t temp;
-					R15 = rd; //(R15 & 0x03FFFFFC) | (rd & 0xFC000003);
-					temp = (GET_CPSR & 0x0FFFFF20) | (rd & 0xF0000000) /* N Z C V */ | ((rd & 0x0C000000) >> (26 - 6)) /* I F */ | (rd & 0x00000003) /* M1 M0 */;
-					set_cpsr( temp);
-					SwitchMode( temp & 3);
+					// 26-bit mode: the result carries the new PSR in bits 31:26 and 1:0 (protected in user mode)
+					write_r15_psr26(rd, true);
 				}
 
 				// extra cycles (PC written)
@@ -1204,11 +1253,8 @@ void arm7_cpu_device::HandleALU(uint32_t insn)
 			}
 			else
 			{
-				uint32_t temp;
-				R15 = (R15 & 0x03FFFFFC) | (rd & ~0x03FFFFFC);
-				temp = (GET_CPSR & 0x0FFFFF20) | (rd & 0xF0000000) /* N Z C V */ | ((rd & 0x0C000000) >> (26 - 6)) /* I F */ | (rd & 0x00000003) /* M1 M0 */;
-				set_cpsr( temp);
-				SwitchMode( temp & 3);
+				// TSTP/TEQP/CMPP/CMNP: the result goes to the PSR only (protected in user mode)
+				write_r15_psr26(rd, false);
 			}
 
 			/* IRQ masks may have changed in this instruction */
@@ -1256,7 +1302,8 @@ void arm7_cpu_device::HandleMul(uint32_t insn)
 	{
 		r += GetRegister((insn & INSN_MUL_RN) >> INSN_MUL_RN_SHIFT);
 		// extra cycle for MLA
-		ARM7_ICOUNT -= 1;
+		if (m_archRev >= 3)
+			ARM7_ICOUNT -= 1;
 	}
 
 	/* Write the result */
@@ -1268,11 +1315,20 @@ void arm7_cpu_device::HandleMul(uint32_t insn)
 		set_cpsr((GET_CPSR & ~(N_MASK | Z_MASK)) | HandleALUNZFlags(r));
 	}
 
-	if (rs & SIGN_BIT) rs = -rs;
-	if (rs < 0x00000100) ARM7_ICOUNT -= 1 + 1;
-	else if (rs < 0x00010000) ARM7_ICOUNT -= 1 + 2;
-	else if (rs < 0x01000000) ARM7_ICOUNT -= 1 + 3;
-	else ARM7_ICOUNT -= 1 + 4;
+	if (m_archRev < 3)
+	{
+		// ARM2/ARM3: 1S + 1I for MUL and MLA alike, as the old cpu/arm core charged (the real parts take 1S + mI with m up
+		// to 16); the chess computer wait-state models (tasc, risc2500) were tuned against that
+		ARM7_ICOUNT -= 2;
+	}
+	else
+	{
+		if (rs & SIGN_BIT) rs = -rs;
+		if (rs < 0x00000100) ARM7_ICOUNT -= 1 + 1;
+		else if (rs < 0x00010000) ARM7_ICOUNT -= 1 + 2;
+		else if (rs < 0x01000000) ARM7_ICOUNT -= 1 + 3;
+		else ARM7_ICOUNT -= 1 + 4;
+	}
 
 	ARM7_ICOUNT += 3;
 }
@@ -1445,9 +1501,9 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 				if (rb == 15)
 					LOGMASKED(LOG_OPS, "%08x:  Illegal LDRM writeback to r15\n", R15);
 #endif
-				// "A LDM will always overwrite the updated base if the base is in the list." (also for a user bank transfer?)
+				// "A LDM will always overwrite the updated base if the base is in the list." (see ldm_loads_base())
 				// GBA "V-Rally 3" expects R0 not to be overwritten with the updated base value [BP 8077B0C]
-				if (((insn >> rb) & 1) == 0)
+				if (!ldm_loads_base(insn, rb))
 				{
 					SetRegister(rb, GetRegister(rb) + result * 4);
 				}
@@ -1480,11 +1536,8 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 					}
 					else
 					{
-						uint32_t temp;
-//                      LOGMASKED(LOG_OPS, "LDM + S | R15 %08X CPSR %08X\n", R15, GET_CPSR);
-						temp = (GET_CPSR & 0x0FFFFF20) | (R15 & 0xF0000000) /* N Z C V */ | ((R15 & 0x0C000000) >> (26 - 6)) /* I F */ | (R15 & 0x00000003) /* M1 M0 */;
-						set_cpsr( temp);
-						SwitchMode(temp & 3);
+						// 26-bit mode: the loaded word carries the new PSR (protected in user mode)
+						write_r15_psr26(R15, true);
 					}
 				}
 				else
@@ -1523,8 +1576,8 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 			{
 				if (rb == 0xf)
 					LOGMASKED(LOG_OPS, "%08x:  Illegal LDRM writeback to r15\n", R15);
-				// "A LDM will always overwrite the updated base if the base is in the list." (also for a user bank transfer?)
-				if (((insn >> rb) & 1) == 0)
+				// "A LDM will always overwrite the updated base if the base is in the list." (see ldm_loads_base())
+				if (!ldm_loads_base(insn, rb))
 				{
 					SetRegister(rb, GetRegister(rb) - result * 4);
 				}
@@ -1556,11 +1609,8 @@ void arm7_cpu_device::HandleMemBlock(uint32_t insn)
 					}
 					else
 					{
-						uint32_t temp;
-//                      LOGMASKED(LOG_OPS, "LDM + S | R15 %08X CPSR %08X\n", R15, GET_CPSR);
-						temp = (GET_CPSR & 0x0FFFFF20) /* N Z C V I F M4 M3 M2 M1 M0 */ | (R15 & 0xF0000000) /* N Z C V */ | ((R15 & 0x0C000000) >> (26 - 6)) /* I F */ | (R15 & 0x00000003) /* M1 M0 */;
-						set_cpsr(temp);
-						SwitchMode(temp & 3);
+						// 26-bit mode: the loaded word carries the new PSR (protected in user mode)
+						write_r15_psr26(R15, true);
 					}
 				}
 				else
@@ -1785,7 +1835,7 @@ void arm7_cpu_device::arm7ops_0123(uint32_t insn)
 //case 2:
 //case 3:
 	/* Branch and Exchange (BX) */
-	if ((insn & 0x0ffffff0) == 0x012fff10)     // bits 27-4 == 000100101111111111110001
+	if (m_archRev >= 3 && (insn & 0x0ffffff0) == 0x012fff10)     // bits 27-4 == 000100101111111111110001 (on ARM2/ARM3 this is a TEQ without S: a no-op)
 	{
 		R15 = GetRegister(insn & 0x0f);
 		// If new PC address has A0 set, switch to Thumb mode
@@ -2019,12 +2069,24 @@ void arm7_cpu_device::arm7ops_0123_v4(uint32_t insn)
 		/* Half Word Data Transfer */
 		if (insn & 0x60)         // bits = 6-5 != 00
 		{
+			if (m_archRev < 3)
+			{
+				// ARM2/ARM3: the "multiply hole" with bits 6:5 set is undefined
+				arm7ops_undef_conditional(insn);
+				return;
+			}
 			HandleHalfWordDT(insn);
 		}
 		else
 		/* Swap */
 		if (insn & 0x01000000)   // bit 24 = 1
 		{
+			if (m_archRev < 3 && !(m_archFlags & ARCHFLAG_V2A))
+			{
+				// ARM1/ARM2: no SWP (ARMv2a)
+				arm7ops_undef_conditional(insn);
+				return;
+			}
 			HandleSwap(insn);
 		}
 		/* Multiply Or Multiply Long */
@@ -2033,6 +2095,12 @@ void arm7_cpu_device::arm7ops_0123_v4(uint32_t insn)
 			/* multiply long */
 			if (insn & 0x800000) // Bit 23 = 1 for Multiply Long
 			{
+				if (m_archRev < 3)
+				{
+					// ARMv3M and later
+					arm7ops_undef_conditional(insn);
+					return;
+				}
 				/* Signed? */
 				if (insn & 0x00400000)
 					HandleSMulLong(insn);
@@ -2042,6 +2110,12 @@ void arm7_cpu_device::arm7ops_0123_v4(uint32_t insn)
 			/* multiply */
 			else
 			{
+				if (m_archRev < 2)
+				{
+					// ARM1 has no multiplier
+					arm7ops_undef_conditional(insn);
+					return;
+				}
 				HandleMul(insn);
 			}
 			R15 += 4;
@@ -2050,8 +2124,8 @@ void arm7_cpu_device::arm7ops_0123_v4(uint32_t insn)
 	/* Data Processing OR PSR Transfer */
 	else if ((insn & 0x0c000000) == 0)   // bits 27-26 == 00 - This check can only exist properly after Multiplication check above
 	{
-		/* PSR Transfer (MRS & MSR) */
-		if (((insn & 0x00100000) == 0) && ((insn & 0x01800000) == 0x01000000)) // S bit must be clear, and bit 24,23 = 10
+		/* PSR Transfer (MRS & MSR) - ARMv3 and later; on ARM2/ARM3 these encodings are TST/TEQ/CMP/CMN without S, no-ops */
+		if (m_archRev >= 3 && ((insn & 0x00100000) == 0) && ((insn & 0x01800000) == 0x01000000)) // S bit must be clear, and bit 24,23 = 10
 		{
 			if (!(insn & INSN_I) && (insn & 0xf0) != 0)
 			{
@@ -2124,6 +2198,8 @@ void arm7_cpu_device::arm7ops_cd(uint32_t insn) /* Co-Processor Data Transfer */
 
 	HandleCoProcDT(insn);
 	R15 += 4;
+	if (m_archRev < 3)
+		ARM7_ICOUNT += 2;   // 1S on ARM2/ARM3 (old cpu/arm core)
 }
 
 void arm7_cpu_device::arm7ops_e(uint32_t insn) /* Co-Processor Data Operation or Register Transfer */
@@ -2133,6 +2209,8 @@ void arm7_cpu_device::arm7ops_e(uint32_t insn) /* Co-Processor Data Operation or
 	else
 		HandleCoProcDO(insn);
 	R15 += 4;
+	if (m_archRev < 3)
+		ARM7_ICOUNT += 2;   // 1S on ARM2/ARM3 (old cpu/arm core)
 }
 
 void arm7_cpu_device::arm7ops_f(uint32_t insn) /* Software Interrupt */
